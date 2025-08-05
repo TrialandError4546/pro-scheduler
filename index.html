@@ -346,6 +346,8 @@
                         };
                         ALL_DATES_BY_DAY[day].forEach((date, index) => {
                             const dayAvailabilityKey = day.toLowerCase();
+                            const proAvailabilityForDay = PRO_AVAILABILITY_DATA.find(pro => pro[dayAvailabilityKey])?.[dayAvailabilityKey];
+                            
                             const availablePros = PRO_AVAILABILITY_DATA
                                 .filter(pro => isProAvailableForClass(pro[dayAvailabilityKey], classItem.time))
                                 .map(pro => pro.name);
@@ -369,7 +371,15 @@
             const currentWeekDate = ALL_DATES_BY_DAY[currentDay]?.[currentWeekIndex];
             document.getElementById('currentWeekDisplay').innerText = currentWeekDate ? `Week of ${currentWeekDate}` : 'No Week Selected';
 
+            console.log("--- renderSchedule called ---");
+            console.log("scheduleState:", scheduleState);
+            console.log("currentCategory:", currentCategory);
+            console.log("currentDay:", currentDay);
+            console.log("currentWeekIndex:", currentWeekIndex);
+            console.log("currentWeekDate:", currentWeekDate);
+
             if (!scheduleState || !scheduleState[currentCategory] || !scheduleState[currentCategory][currentDay] || !currentWeekDate) {
+                console.log("Rendering 'Loading schedule...' due to incomplete state.");
                 container.innerHTML = `<p class="text-center text-gray-400">Loading schedule...</p>`;
                 return;
             }
@@ -535,7 +545,8 @@
             const selectedProsForCurrentWeek = scheduleState[categoryForAssignment][dayForAssignment][className].weeklyAssignments[currentWeekDate].pros;
 
             if (selectedProsForCurrentWeek.length === 0) {
-                alert("Please select at least one pro for this class in the current week before using 'Assign All Instances'.");
+                // Replaced alert with console.error for debugging purposes
+                console.error("Please select at least one pro for this class in the current week before using 'Assign All Instances'.");
                 return;
             }
 
@@ -571,18 +582,15 @@
                     // Now, for this specific weekDate, update availablePros for other classes on the same day
                     SCHEDULE_CATEGORIES[categoryForAssignment][dayForAssignment].forEach(otherClassItem => {
                         if (otherClassItem.name !== className) {
-                            const otherClassWeekState = updatedScheduleState[categoryForAssignment][dayForAssignment][otherClassItem.name]?.weeklyAssignments[weekDate];
-                            if (otherClassWeekState) {
-                                const otherClassTime = otherClassItem.time;
-                                const currentClassTime = classOffering.time;
+                            const otherClassTime = SCHEDULE_CATEGORIES[categoryForAssignment][dayForAssignment].find(c => c.name === otherClassItem.name)?.time;
+                            const currentClassTime = classOffering.time;
 
-                                // If times overlap, remove assigned pros from other classes' available lists
-                                if (otherClassTime === currentClassTime) {
-                                    let updatedAvailablePros = otherClassWeekState.availablePros.filter(
-                                        pro => !selectedProsForCurrentWeek.includes(pro)
-                                    );
-                                    updatedScheduleState[categoryForAssignment][dayForAssignment][otherClassItem.name].weeklyAssignments[weekDate].availablePros = updatedAvailablePros.sort();
-                                }
+                            // If times overlap, remove assigned pros from other classes' available lists
+                            if (otherClassTime === currentClassTime) {
+                                let updatedAvailablePros = otherClassWeekState.availablePros.filter(
+                                    pro => !selectedProsForCurrentWeek.includes(pro)
+                                );
+                                updatedScheduleState[categoryForAssignment][dayForAssignment][otherClassItem.name].weeklyAssignments[weekDate].availablePros = updatedAvailablePros.sort();
                             }
                         }
                     });
@@ -597,10 +605,12 @@
             const scheduleDocRef = doc(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/scheduleData`);
             try {
                 await setDoc(scheduleDocRef, { schedule: scheduleState });
-                alert(`Assigned selected pros to all instances of "${className}" on ${dayForAssignment}s.`);
+                // Replaced alert with console.log for debugging purposes
+                console.log(`Assigned selected pros to all instances of "${className}" on ${dayForAssignment}s.`);
             } catch (err) {
+                console.error("Failed to assign to all instances. Please try again:", err);
+                // Replaced alert with console.error for debugging purposes
                 console.error("Failed to assign to all instances. Please try again.");
-                alert("Failed to assign to all instances. Please try again.");
             }
         };
 
@@ -710,12 +720,30 @@
                         const appIdForFirestore = firebaseConfig.projectId; // Use projectId for the Firestore path
                         const scheduleDocRef = doc(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/scheduleData`);
                         onSnapshot(scheduleDocRef, (docSnap) => {
+                            console.log("onSnapshot triggered. docSnap.exists():", docSnap.exists());
                             if (docSnap.exists()) {
-                                scheduleState = docSnap.data().schedule;
+                                const fetchedData = docSnap.data();
+                                console.log("Fetched data:", fetchedData);
+                                scheduleState = fetchedData.schedule;
+                                console.log("scheduleState after fetch:", scheduleState);
+                                if (!scheduleState) { // Defensive check if schedule is null/undefined in fetched data
+                                    console.error("schedule data is null or undefined after fetching from Firestore. Re-initializing.");
+                                    scheduleState = initializeScheduleData();
+                                    setDoc(scheduleDocRef, { schedule: scheduleState }).catch(err => console.error("Failed to set initial schedule (after bad fetch):", err));
+                                }
                             } else {
+                                console.log("Document does not exist. Initializing schedule data.");
                                 scheduleState = initializeScheduleData();
+                                console.log("scheduleState after initialize:", scheduleState);
                                 setDoc(scheduleDocRef, { schedule: scheduleState }).catch(err => console.error("Failed to set initial schedule:", err));
                             }
+                            
+                            // Ensure scheduleState is ready before rendering
+                            if (!scheduleState || Object.keys(scheduleState).length === 0 || !scheduleState[currentCategory] || Object.keys(scheduleState[currentCategory]).length === 0) {
+                                console.warn("scheduleState is empty or not fully initialized before rendering attempt. Returning.");
+                                return; // Prevent rendering if scheduleState is not ready
+                            }
+
                             // Initialize with default category and day, then render
                             currentCategory = Object.keys(SCHEDULE_CATEGORIES)[0];
                             currentDay = Object.keys(SCHEDULE_CATEGORIES[currentCategory])[0];

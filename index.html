@@ -724,13 +724,34 @@
                             if (docSnap.exists()) {
                                 const fetchedData = docSnap.data();
                                 console.log("Fetched data:", fetchedData);
-                                scheduleState = fetchedData.schedule;
-                                console.log("scheduleState after fetch:", scheduleState);
-                                if (!scheduleState) { // Defensive check if schedule is null/undefined in fetched data
-                                    console.error("schedule data is null or undefined after fetching from Firestore. Re-initializing.");
-                                    scheduleState = initializeScheduleData();
-                                    setDoc(scheduleDocRef, { schedule: scheduleState }).catch(err => console.error("Failed to set initial schedule (after bad fetch):", err));
+                                
+                                // Initialize a fresh scheduleState with the correct structure
+                                let newScheduleState = initializeScheduleData();
+                                
+                                // Merge existing assignments from fetchedData into the new structure
+                                if (fetchedData.schedule) {
+                                    Object.keys(fetchedData.schedule).forEach(category => {
+                                        if (newScheduleState[category]) { // Ensure category exists in new structure
+                                            Object.keys(fetchedData.schedule[category]).forEach(day => {
+                                                if (newScheduleState[category][day]) { // Ensure day exists
+                                                    Object.keys(fetchedData.schedule[category][day]).forEach(className => {
+                                                        if (newScheduleState[category][day][className] && fetchedData.schedule[category][day][className].weeklyAssignments) {
+                                                            Object.keys(fetchedData.schedule[category][day][className].weeklyAssignments).forEach(weekDate => {
+                                                                if (newScheduleState[category][day][className].weeklyAssignments[weekDate]) {
+                                                                    // Only copy 'pros' array, preserve 'availablePros' and 'court' from current code
+                                                                    newScheduleState[category][day][className].weeklyAssignments[weekDate].pros = fetchedData.schedule[category][day][className].weeklyAssignments[weekDate].pros || [];
+                                                                }
+                                                            });
+                                                        }
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    });
                                 }
+                                scheduleState = newScheduleState;
+                                console.log("scheduleState after fetch and merge:", scheduleState);
+
                             } else {
                                 console.log("Document does not exist. Initializing schedule data.");
                                 scheduleState = initializeScheduleData();

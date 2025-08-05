@@ -8,6 +8,46 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
+
+        /* Modal specific styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.7); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal-content {
+            background-color: #1f2937; /* Gray-800 */
+            margin: auto;
+            padding: 20px;
+            border-radius: 0.75rem; /* rounded-xl */
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            color: #e5e7eb; /* text-gray-200 */
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .close-button {
+            color: #9ca3af; /* gray-400 */
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: #f3f4f6; /* gray-100 */
+            text-decoration: none;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen p-6 md:p-12">
@@ -40,9 +80,32 @@
             </button>
         </div>
 
+        <!-- Today's Schedule Button -->
+        <div class="mb-8">
+            <button id="showTodayBtn" class="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300">
+                Show Today's Schedule
+            </button>
+        </div>
+
         <div id="schedule-container" class="space-y-6">
             <!-- Class cards will be injected here by JavaScript -->
             <div id="loading" class="text-center text-lg text-gray-300">Loading schedule...</div>
+        </div>
+    </div>
+
+    <!-- Email Content Modal -->
+    <div id="emailModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2 class="text-3xl font-bold mb-4 text-emerald-400">Today's Schedule Summary</h2>
+            <p class="text-gray-400 mb-6">
+                Below is a summary of today's assigned classes. You can copy the email content for each pro.
+                <br>
+                <span class="font-bold text-red-400">Note: This application does NOT send emails directly.</span>
+            </p>
+            <div id="emailContentArea" class="space-y-6">
+                <!-- Email content for each pro will be injected here -->
+            </div>
         </div>
     </div>
 
@@ -742,8 +805,23 @@
                                                                     newScheduleState[category][day][className].weeklyAssignments[weekDate].pros = fetchedData.schedule[category][day][className].weeklyAssignments[weekDate].pros || [];
                                                                 }
                                                             });
+                                                        } else if (newScheduleState[day] && fetchedData.schedule[day] && fetchedData.schedule[day][className] && fetchedData.schedule[day][className].weeklyAssignments) {
+                                                            // Handle case where old data might have day as top-level key (no category)
+                                                            Object.keys(fetchedData.schedule[day][className].weeklyAssignments).forEach(weekDate => {
+                                                                if (newScheduleState[category][day][className] && newScheduleState[category][day][className].weeklyAssignments[weekDate]) {
+                                                                    newScheduleState[category][day][className].weeklyAssignments[weekDate].pros = fetchedData.schedule[day][className].weeklyAssignments[weekDate].pros || [];
+                                                                }
+                                                            });
                                                         }
                                                     });
+                                                }
+                                            });
+                                        } else if (newScheduleState[category] && fetchedData.schedule[category] && fetchedData.schedule[category].weeklyAssignments) {
+                                            // Fallback for old data structure if category was directly under schedule
+                                            // This case is unlikely given the console log, but defensive
+                                            Object.keys(fetchedData.schedule[category].weeklyAssignments).forEach(weekDate => {
+                                                if (newScheduleState[category].weeklyAssignments[weekDate]) {
+                                                    newScheduleState[category].weeklyAssignments[weekDate].pros = fetchedData.schedule[category].weeklyAssignments[weekDate].pros || [];
                                                 }
                                             });
                                         }
@@ -765,9 +843,7 @@
                                 return; // Prevent rendering if scheduleState is not ready
                             }
 
-                            // Initialize with default category and day, then render
-                            currentCategory = Object.keys(SCHEDULE_CATEGORIES)[0];
-                            currentDay = Object.keys(SCHEDULE_CATEGORIES[currentCategory])[0];
+                            // Render UI based on the (potentially new) scheduleState
                             renderCategoryTabs();
                             renderDayTabs();
                             renderSchedule();

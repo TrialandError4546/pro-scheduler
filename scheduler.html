@@ -124,6 +124,16 @@
             ]
         };
 
+        // Your Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBfSktPAi7fZu9TFISDn-WoQEYWcbocZCg",
+            authDomain: "sample-firebase-ai-app-2418a.firebaseapp.com",
+            projectId: "sample-firebase-ai-app-2418a",
+            storageBucket: "sample-firebase-ai-app-2418a.firebasestorage.app",
+            messagingSenderId: "614076690358",
+            appId: "1:614076690358:web:413c5332b56781e8639b17"
+        };
+
         let db;
         let auth;
         let currentUserId;
@@ -242,9 +252,18 @@
 
                 const prosCheckboxes = availablePros.map(pro => {
                     const isChecked = assignedPros.includes(pro);
-                    const isAlreadyAssigned = Object.values(scheduleForDay)
-                                             .some(cls => cls.pros.includes(pro));
-                    const isDisabled = isAlreadyAssigned && !isChecked;
+                    // A pro is disabled if they are already assigned to another class at the same time slot
+                    const isAssignedElsewhereAtSameTime = Object.keys(scheduleForDay)
+                        .filter(otherClassName => otherClassName !== classItem.name)
+                        .some(otherClassName => {
+                            const otherClassTime = ALL_CLASSES[currentDay].find(c => c.name === otherClassName)?.time;
+                            const currentClassTime = classItem.time;
+                            // Check if the times overlap. For simplicity, we'll consider exact time matches for now.
+                            // For more complex overlaps, a more robust time comparison function would be needed.
+                            return otherClassTime === currentClassTime && scheduleForDay[otherClassName].pros.includes(pro);
+                        });
+                    
+                    const isDisabled = isAssignedElsewhereAtSameTime && !isChecked;
                     
                     return `
                         <label class="flex items-center space-x-2 text-gray-300 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}">
@@ -308,6 +327,7 @@
                 newAssignments = currentAssignments.filter(pro => pro !== proName);
             }
 
+            // Update the local scheduleState immediately for responsiveness
             scheduleState = {
                 ...scheduleState,
                 [currentDay]: {
@@ -318,9 +338,12 @@
                     },
                 },
             };
+            // Re-render the schedule to reflect the local change and update checkbox states
+            renderSchedule();
 
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const scheduleDocRef = doc(db, `artifacts/${appId}/public/data/proSchedule/scheduleData`);
+            // Update Firestore
+            const appIdForFirestore = firebaseConfig.projectId; // Use projectId for the Firestore path
+            const scheduleDocRef = doc(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/scheduleData`);
             try {
                 await setDoc(scheduleDocRef, { schedule: scheduleState });
             } catch (err) {
@@ -363,8 +386,6 @@
             document.getElementById('loading').style.display = 'none';
 
             try {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
                 const firebaseApp = initializeApp(firebaseConfig);
                 db = getFirestore(firebaseApp);
                 auth = getAuth(firebaseApp);
@@ -376,18 +397,14 @@
                         currentUserId = user.uid;
                         document.getElementById('userId').innerText = user.uid;
                     } else {
-                        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                        if (token) {
-                            await signInWithCustomToken(auth, token);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
+                        await signInAnonymously(auth);
                         currentUserId = auth.currentUser.uid;
                         document.getElementById('userId').innerText = currentUserId;
                     }
 
                     if (db && currentUserId) {
-                        const scheduleDocRef = doc(db, `artifacts/${appId}/public/data/proSchedule/scheduleData`);
+                        const appIdForFirestore = firebaseConfig.projectId; // Use projectId for the Firestore path
+                        const scheduleDocRef = doc(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/scheduleData`);
                         onSnapshot(scheduleDocRef, (docSnap) => {
                             if (docSnap.exists()) {
                                 scheduleState = docSnap.data().schedule;

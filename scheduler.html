@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Day Pro Staff Scheduler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-6 md:p-12">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold mb-4 text-emerald-400">Multi-Day Pro Staff Scheduler</h1>
+        <p class="text-gray-400 mb-8">
+            This is a live, collaborative scheduler. Assignments will be saved in real-time.
+            <br/>
+            <span class="font-semibold text-white">Your User ID: <span id="userId">Loading...</span></span>
+        </p>
+
+        <!-- Day Tabs -->
+        <div id="day-tabs" class="flex flex-wrap gap-2 mb-8 border-b-2 border-gray-700">
+            <!-- Tabs will be injected by JavaScript -->
+        </div>
+
+        <div id="schedule-container" class="space-y-6">
+            <!-- Class cards will be injected here by JavaScript -->
+            <div id="loading" class="text-center text-lg text-gray-300">Loading schedule...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Data parsed from the uploaded PDF
+        const PRO_AVAILABILITY_DATA = [
+            { name: 'John Warren', monday: '9a-8:30p', tuesday: '9a-8:30p', wednesday: '9a-8:30p', thursday: '9a-8:30p', friday: '9a-8:30p' },
+            { name: 'Rod Bailey', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: '' },
+            { name: 'Lindsay Baum', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available' },
+            { name: 'Justyna Wereszka', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available NEW', friday: 'Available NEW' },
+            { name: 'David Parra-Newton', monday: '9am-7pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-5:30pm NEW' },
+            { name: 'Leo Correa', monday: '9am-8:30 pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30 pm NEW', thursday: '9am-8:30 pm NEW', friday: '9am-6:30pm NEW' },
+            { name: 'Nouri El-Hajjar', monday: '9am-8:30 pm', tuesday: '9-8:30 pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-4pm NEW' },
+            { name: 'Danny Ahn', monday: '9am-8:30pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-4pm NEW' },
+            { name: 'Osas Akinniranye', monday: 'Available 9am', tuesday: 'Available 9am', wednesday: 'Available 9am', thursday: 'Available 9am', friday: 'Available 9am' },
+            { name: 'Stever Forte', monday: '9-8:30pm', tuesday: '9-8:30pm NEW', wednesday: '9-8:30pm NEW', thursday: '9-8:30pm NEW', friday: '' },
+            { name: 'Ziryab Ahmed', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available' },
+            { name: 'Karla Noboa', monday: 'New 10am-8:30pm', tuesday: 'New 10am-8:30pm', wednesday: 'Available 10am-8:30prn', thursday: 'Available 10arn 8:30pm', friday: '9am-9:30pm' },
+            { name: 'Zack Ray', monday: 'Off', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available' },
+            { name: 'Omer Khalifa', monday: 'Available (New!)', tuesday: 'Available (New)', wednesday: 'Available (New)', thursday: 'Available (New)', friday: 'Available (New)' },
+            { name: 'Gustavo Alcayaga', monday: 'Summer 2025 9-4 pm', tuesday: 'Summer 2025 9-4 pm', wednesday: 'Summer 20259-4 pm', thursday: 'Summer 2025 9-4 pm', friday: 'Summer 2025 9-4 pm' },
+            { name: 'Valeria Torres', monday: 'NArbr', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: '8 am-6pm NEW' },
+            { name: 'Alex Hagiu', monday: 'Available', tuesday: 'N/A', wednesday: 'Available', thursday: 'N/A', friday: 'NA' },
+            { name: 'Peter Wang', monday: 'N/A', tuesday: '9am-8:30pm', wednesday: 'N/A', thursday: '9am 8:30pm', friday: '2pm-8:30pm' },
+            { name: 'Farhad Roshashanie', monday: 'INIA', tuesday: 'NXAC', wednesday: 'NIA', thursday: 'NOW', friday: 'N/A' },
+            { name: 'Jinny Welch', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'NUA', friday: 'N/A NEW' },
+            { name: 'Viola Avdyli', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: 'N/A' },
+            { name: 'Frederick Abunku', monday: '6pm-10pm', tuesday: '6pm-10pm', wednesday: '6pm-10pm', thursday: 'BUA', friday: 'N/A' },
+            { name: 'Daniel Cox', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'NVA', friday: 'NA' },
+            { name: 'Shaquille Hamilton', monday: '8:30am-3pm', tuesday: '8:30am-3pm', wednesday: '8:30am-3pm', thursday: '8:30am-3pm', friday: 'N' },
+            { name: 'Valery Cardona', monday: '9-4', tuesday: '9-4 pm (NEW)', wednesday: '9-4 pm (NEW]', thursday: '9-4 pm (NEW)', friday: '9-4 pm (NEW)' },
+            { name: 'Mellanie Benitez', monday: '9-4 pm (NEW)', tuesday: '9-4 pm (NEW)', wednesday: '9-4 pm (NEW]', thursday: '9-4 pm (NEW)', friday: '9-4 pm. (NEW)' },
+            { name: 'Lenny Brosnan', monday: 'INA', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: 'TUA' },
+            { name: 'Will McGarvey', monday: 'Barm-3pm NEW', tuesday: '8am-3pm NEW', wednesday: 'Barm-3pm NEW', thursday: '8am-3pm NEW', friday: 'Bam-3pm NEW' },
+            { name: 'Robert Childers', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available (NEW)' },
+            { name: 'Felix Liew', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available' },
+            { name: 'Petra Frinculescu', monday: '1-10 pm NEW', tuesday: '9-4pm NEW', wednesday: '1-10pm NEW', thursday: '9-4pm NEW', friday: '1-10pm NEW' },
+            { name: 'Bilal Afzal', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'NICA' },
+            { name: 'Orlando Olmedo', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available' },
+            { name: 'Sophia Rodriguez', monday: 'Available NEW', tuesday: 'Available NEW', wednesday: 'Available NEW', thursday: 'Available NEW', friday: 'Available NEW' },
+            { name: 'Rohan D\'Souza', monday: '7a-9am, 12pm-10pm', tuesday: '', wednesday: '7a-9am, 12pm-10pm', thursday: '7am-3pm', friday: '7a-9am, 12-5pm' },
+        ];
+
+        const ALL_CLASSES = {
+            Monday: [
+                { name: 'Weekday Novice 102', time: '9A' },
+                { name: 'Weekday NTC Rally', time: '9A' },
+                { name: 'Round Robin', time: '10A' },
+                { name: 'Weekday Drill & Play (Silver)', time: '10A' },
+                { name: 'Round Robin', time: '11:30A' },
+                { name: 'Weekday Lead Pro (Bronze)', time: '10:30A' },
+                { name: 'Weekday NTC Daylights (Rally)', time: '12P' },
+            ],
+            Tuesday: [
+                { name: 'NTC Breakfast Club (Bronze)', time: '7:30A' },
+                { name: 'Weekday Stroke Series', time: '9A' },
+                { name: 'Weekday Intro To Tennis', time: '9A' },
+                { name: 'Weekday NTC Bronze', time: '10A' },
+                { name: 'Weekday Novice 102', time: '10A' },
+                { name: 'Weekday Advanced Zone', time: '10:30A' },
+                { name: 'Weekday NTC Gold', time: '10A' },
+                { name: 'Weekday Intro To Tennis', time: '11:30A' },
+            ],
+            Wednesday: [
+                { name: 'Round Robin', time: '10A' },
+                { name: 'Round Robin', time: '11:30A' },
+                { name: 'NTC Breakfast Club (Rally)', time: '7:30A' },
+                { name: 'Weekday Lead Pro (Bronze)', time: '9A' },
+                { name: 'Weekday Novice 102', time: '9A' },
+                { name: 'Weekday NTC Rally', time: '9A' },
+                { name: 'Weekday NTC Silver', time: '10:30A' },
+                { name: 'Weekday Intro To Tennis', time: '10:30A' },
+                { name: 'NTC Daylights (Bronze)', time: '10:30A' },
+            ],
+            Thursday: [
+                { name: 'Round Robin', time: '10A' },
+                { name: 'Round Robin', time: '11:30A' },
+                { name: 'NTC Breakfast Club (Silver)', time: '7:30A' },
+                { name: 'Weekday Lead Pro (Bronze)', time: '9A' },
+                { name: 'Weekday Lead Pro (Silver)', time: '10:30A' },
+                { name: 'Weekday Advanced Zone', time: '10:30A' },
+                { name: 'Weekday NTC Daylights (Rally)', time: '12P' },
+                { name: 'Evaluations', time: '9 to 10:30A' },
+            ],
+            Friday: [
+                { name: 'Director\'s Cut (Silver)', time: '9A' },
+                { name: 'Weekday Intro To Tennis', time: '9A' },
+                { name: 'Weekday Novice 102', time: '10A' },
+                { name: 'Weekday NTC Bronze', time: '10A' },
+                { name: 'Weekday NTC Rally', time: '10:30A' },
+            ]
+        };
+
+        let db;
+        let auth;
+        let currentUserId;
+        let scheduleState;
+        let currentDay = 'Monday';
+
+        // Helper function to parse time strings into minutes from midnight for comparison
+        const parseTime = (timeStr) => {
+            const normalizedTime = timeStr.replace(/ /g, '').toLowerCase();
+            const match = normalizedTime.match(/(\d+)(?::(\d+))?([ap]?m?)?/);
+            if (!match) return null;
+
+            let hours = parseInt(match[1]);
+            const minutes = parseInt(match[2] || '0');
+            const ampm = match[3];
+
+            if (ampm === 'p' && hours !== 12) {
+                hours += 12;
+            }
+            if (ampm === 'a' && hours === 12) {
+                hours = 0;
+            }
+            return hours * 60 + minutes;
+        };
+
+        const isProAvailableForClass = (proAvailability, classTime) => {
+            if (!proAvailability) return false;
+            const classTimeNormalized = classTime.toLowerCase().replace(/ /g, '');
+            const classStartTime = parseTime(classTimeNormalized.split('to')[0].trim());
+            const classEndTime = parseTime(classTimeNormalized.split('to')[1]?.trim() || classTimeNormalized);
+
+            if (classStartTime === null) return false;
+
+            if (proAvailability.toLowerCase().includes('available')) {
+                return true;
+            }
+
+            const unavailableKeywords = ['off', 'n/a', 'nia', 'tua', 'unavailable', 'inarbr', 'nva', 'nica', 'bua', 'now'];
+            if (unavailableKeywords.some(keyword => proAvailability.toLowerCase().includes(keyword))) {
+                return false;
+            }
+
+            const ranges = proAvailability.split(/, | and /).filter(s => s.trim().length > 0);
+            for (const range of ranges) {
+                const timeParts = range.match(/(\d+)(:\d+)?(a?m?|p?m?)\s*-\s*(\d+)(:\d+)?(a?m?|p?m?)/i);
+                if (timeParts) {
+                    const startStr = (timeParts[1] + (timeParts[2] || '') + (timeParts[3] || '')).trim();
+                    const endStr = (timeParts[4] + (timeParts[5] || '') + (timeParts[6] || '')).trim();
+                    const startTime = parseTime(startStr);
+                    const endTime = parseTime(endStr);
+                    if (startTime !== null && endTime !== null) {
+                        if (endTime < startTime) {
+                            if ((classStartTime >= startTime && classStartTime <= 24*60) || (classEndTime >= 0 && classEndTime <= endTime)) {
+                                return true;
+                            }
+                        } else if (classStartTime >= startTime && classEndTime <= endTime) {
+                            return true;
+                        }
+                    }
+                } else {
+                    const singleTimeMatch = range.match(/(\d+)(:\d+)?(a?m?|p?m?)/i);
+                    if (singleTimeMatch) {
+                        const singleTimeStr = (singleTimeMatch[1] + (singleTimeMatch[2] || '') + (singleTimeMatch[3] || '')).trim();
+                        const singleTime = parseTime(singleTimeStr);
+                        if (singleTime !== null && classStartTime >= singleTime) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+
+        const initializeScheduleData = () => {
+            const initialSchedule = {};
+            Object.keys(ALL_CLASSES).forEach(day => {
+                initialSchedule[day] = {};
+                ALL_CLASSES[day].forEach(classItem => {
+                    const availablePros = PRO_AVAILABILITY_DATA
+                        .filter(pro => isProAvailableForClass(pro[day.toLowerCase()], classItem.time))
+                        .map(pro => pro.name);
+                    initialSchedule[day][classItem.name] = {
+                        pros: [],
+                        availablePros: availablePros.sort(),
+                    };
+                });
+            });
+            return initialSchedule;
+        };
+
+        const renderSchedule = () => {
+            const container = document.getElementById('schedule-container');
+            container.innerHTML = '';
+            
+            if (!scheduleState || !scheduleState[currentDay]) {
+                container.innerHTML = `<p class="text-center text-gray-400">Loading schedule...</p>`;
+                return;
+            }
+
+            const classesForDay = ALL_CLASSES[currentDay];
+            const scheduleForDay = scheduleState[currentDay];
+
+            if (!classesForDay || classesForDay.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-400">No classes scheduled for ${currentDay}.</p>`;
+                return;
+            }
+
+            classesForDay.forEach(classItem => {
+                const classState = scheduleForDay[classItem.name];
+                const assignedPros = classState.pros;
+                const availablePros = classState.availablePros;
+
+                const assignedProsHtml = assignedPros.length > 0
+                    ? assignedPros.map(pro => `<span class="inline-block bg-emerald-700 text-white text-sm px-3 py-1 rounded-full font-semibold">${pro}</span>`).join(' ')
+                    : '<span class="text-gray-500">Unassigned</span>';
+
+                const prosCheckboxes = availablePros.map(pro => {
+                    const isChecked = assignedPros.includes(pro);
+                    const isAlreadyAssigned = Object.values(scheduleForDay)
+                                             .some(cls => cls.pros.includes(pro));
+                    const isDisabled = isAlreadyAssigned && !isChecked;
+                    
+                    return `
+                        <label class="flex items-center space-x-2 text-gray-300 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}">
+                            <input
+                                type="checkbox"
+                                name="pro-${classItem.name}"
+                                value="${pro}"
+                                class="form-checkbox h-4 w-4 text-emerald-500 rounded-md"
+                                ${isChecked ? 'checked' : ''}
+                                ${isDisabled ? 'disabled' : ''}
+                                data-class-name="${classItem.name}"
+                                data-pro-name="${pro}"
+                            />
+                            <span>${pro}</span>
+                        </label>
+                    `;
+                }).join('');
+
+                const cardHtml = `
+                    <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 hover:border-emerald-500 transition-all duration-300">
+                        <h2 class="text-2xl font-bold mb-2 text-white">${classItem.name}</h2>
+                        <p class="text-gray-400 mb-4">Time: ${classItem.time}</p>
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold text-emerald-300 mb-2">Assigned Pros:</h3>
+                            <div class="flex flex-wrap gap-2">
+                                ${assignedProsHtml}
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-300 mb-2">Available Pros:</h3>
+                            <div class="flex flex-wrap gap-4">
+                                ${prosCheckboxes}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', cardHtml);
+            });
+
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const { className, proName } = e.target.dataset;
+                    const isChecked = e.target.checked;
+                    handleAssignPro(className, proName, isChecked);
+                });
+            });
+        };
+
+        const handleAssignPro = async (className, proName, isChecked) => {
+            if (!db || !currentUserId) {
+                console.error("Database not ready.");
+                return;
+            }
+
+            const currentAssignments = scheduleState[currentDay][className].pros;
+            let newAssignments;
+
+            if (isChecked) {
+                newAssignments = [...currentAssignments, proName].sort();
+            } else {
+                newAssignments = currentAssignments.filter(pro => pro !== proName);
+            }
+
+            scheduleState = {
+                ...scheduleState,
+                [currentDay]: {
+                    ...scheduleState[currentDay],
+                    [className]: {
+                        ...scheduleState[currentDay][className],
+                        pros: newAssignments,
+                    },
+                },
+            };
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const scheduleDocRef = doc(db, `artifacts/${appId}/public/data/proSchedule/scheduleData`);
+            try {
+                await setDoc(scheduleDocRef, { schedule: scheduleState });
+            } catch (err) {
+                console.error("Failed to update schedule:", err);
+            }
+        };
+
+        const renderTabs = () => {
+            const tabContainer = document.getElementById('day-tabs');
+            tabContainer.innerHTML = '';
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+            days.forEach(day => {
+                const isActive = day === currentDay;
+                const buttonClass = isActive
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700';
+
+                const tabHtml = `
+                    <button
+                        class="px-6 py-2 rounded-t-lg font-bold transition-colors ${buttonClass}"
+                        data-day="${day}"
+                    >
+                        ${day}
+                    </button>
+                `;
+                tabContainer.insertAdjacentHTML('beforeend', tabHtml);
+            });
+
+            document.querySelectorAll('#day-tabs button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    currentDay = e.target.dataset.day;
+                    renderTabs();
+                    renderSchedule();
+                });
+            });
+        };
+
+        window.onload = async () => {
+            document.getElementById('loading').style.display = 'none';
+
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                const firebaseApp = initializeApp(firebaseConfig);
+                db = getFirestore(firebaseApp);
+                auth = getAuth(firebaseApp);
+
+                document.getElementById('userId').innerText = 'Authenticating...';
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        document.getElementById('userId').innerText = user.uid;
+                    } else {
+                        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                        if (token) {
+                            await signInWithCustomToken(auth, token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                        currentUserId = auth.currentUser.uid;
+                        document.getElementById('userId').innerText = currentUserId;
+                    }
+
+                    if (db && currentUserId) {
+                        const scheduleDocRef = doc(db, `artifacts/${appId}/public/data/proSchedule/scheduleData`);
+                        onSnapshot(scheduleDocRef, (docSnap) => {
+                            if (docSnap.exists()) {
+                                scheduleState = docSnap.data().schedule;
+                            } else {
+                                scheduleState = initializeScheduleData();
+                                setDoc(scheduleDocRef, { schedule: scheduleState }).catch(err => console.error("Failed to set initial schedule:", err));
+                            }
+                            renderTabs();
+                            renderSchedule();
+                        }, (err) => {
+                            console.error("Failed to fetch schedule:", err);
+                            const container = document.getElementById('schedule-container');
+                            container.innerHTML = `<div class="text-red-400">Failed to load schedule data. Please check your connection.</div>`;
+                        });
+                    }
+                });
+            } catch (e) {
+                console.error("Application failed to initialize:", e);
+                const container = document.getElementById('schedule-container');
+                container.innerHTML = `<div class="text-red-400">Application failed to initialize. Please check the console for errors.</div>`;
+            }
+        };
+    </script>
+</body>
+</html>

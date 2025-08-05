@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Day Pro Staff Scheduler</title>
+    <title>Multi-Category, Multi-Week Pro Staff Scheduler</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -12,16 +12,32 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen p-6 md:p-12">
     <div class="max-w-4xl mx-auto">
-        <h1 class="text-4xl font-bold mb-4 text-emerald-400">Multi-Day Pro Staff Scheduler</h1>
+        <h1 class="text-4xl font-bold mb-4 text-emerald-400">Multi-Category, Multi-Week Pro Staff Scheduler</h1>
         <p class="text-gray-400 mb-8">
             This is a live, collaborative scheduler. Assignments will be saved in real-time.
             <br/>
             <span class="font-semibold text-white">Your User ID: <span id="userId">Loading...</span></span>
         </p>
 
-        <!-- Day Tabs -->
+        <!-- Category Tabs (Daytime, Evenings, Weekends) -->
+        <div id="category-tabs" class="flex flex-wrap gap-2 mb-4 border-b-2 border-gray-600">
+            <!-- Category tabs will be injected by JavaScript -->
+        </div>
+
+        <!-- Day Tabs (Monday, Tuesday, etc.) -->
         <div id="day-tabs" class="flex flex-wrap gap-2 mb-8 border-b-2 border-gray-700">
-            <!-- Tabs will be injected by JavaScript -->
+            <!-- Day tabs will be injected by JavaScript -->
+        </div>
+
+        <!-- Week Navigation -->
+        <div class="flex justify-between items-center mb-8">
+            <button id="prevWeekBtn" class="px-4 py-2 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-600 transition-colors duration-300">
+                &larr; Previous Week
+            </button>
+            <span id="currentWeekDisplay" class="text-xl font-bold text-emerald-300">Loading Week...</span>
+            <button id="nextWeekBtn" class="px-4 py-2 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-600 transition-colors duration-300">
+                Next Week &rarr;
+            </button>
         </div>
 
         <div id="schedule-container" class="space-y-6">
@@ -37,91 +53,200 @@
 
         // Data parsed from the uploaded PDF
         const PRO_AVAILABILITY_DATA = [
-            { name: 'John Warren', monday: '9a-8:30p', tuesday: '9a-8:30p', wednesday: '9a-8:30p', thursday: '9a-8:30p', friday: '9a-8:30p' },
-            { name: 'Rod Bailey', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: '' },
-            { name: 'Lindsay Baum', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available' },
-            { name: 'Justyna Wereszka', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available NEW', friday: 'Available NEW' },
-            { name: 'David Parra-Newton', monday: '9am-7pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-5:30pm NEW' },
-            { name: 'Leo Correa', monday: '9am-8:30 pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30 pm NEW', thursday: '9am-8:30 pm NEW', friday: '9am-6:30pm NEW' },
-            { name: 'Nouri El-Hajjar', monday: '9am-8:30 pm', tuesday: '9-8:30 pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-4pm NEW' },
-            { name: 'Danny Ahn', monday: '9am-8:30pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-4pm NEW' },
-            { name: 'Osas Akinniranye', monday: 'Available 9am', tuesday: 'Available 9am', wednesday: 'Available 9am', thursday: 'Available 9am', friday: 'Available 9am' },
-            { name: 'Stever Forte', monday: '9-8:30pm', tuesday: '9-8:30pm NEW', wednesday: '9-8:30pm NEW', thursday: '9-8:30pm NEW', friday: '' },
-            { name: 'Ziryab Ahmed', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available' },
-            { name: 'Karla Noboa', monday: 'New 10am-8:30pm', tuesday: 'New 10am-8:30pm', wednesday: 'Available 10am-8:30prn', thursday: 'Available 10arn 8:30pm', friday: '9am-9:30pm' },
-            { name: 'Zack Ray', monday: 'Off', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available' },
-            { name: 'Omer Khalifa', monday: 'Available (New!)', tuesday: 'Available (New)', wednesday: 'Available (New)', thursday: 'Available (New)', friday: 'Available (New)' },
-            { name: 'Gustavo Alcayaga', monday: 'Summer 2025 9-4 pm', tuesday: 'Summer 2025 9-4 pm', wednesday: 'Summer 20259-4 pm', thursday: 'Summer 2025 9-4 pm', friday: 'Summer 2025 9-4 pm' },
-            { name: 'Valeria Torres', monday: 'NArbr', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: '8 am-6pm NEW' },
-            { name: 'Alex Hagiu', monday: 'Available', tuesday: 'N/A', wednesday: 'Available', thursday: 'N/A', friday: 'NA' },
-            { name: 'Peter Wang', monday: 'N/A', tuesday: '9am-8:30pm', wednesday: 'N/A', thursday: '9am 8:30pm', friday: '2pm-8:30pm' },
-            { name: 'Farhad Roshashanie', monday: 'INIA', tuesday: 'NXAC', wednesday: 'NIA', thursday: 'NOW', friday: 'N/A' },
-            { name: 'Jinny Welch', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'NUA', friday: 'N/A NEW' },
-            { name: 'Viola Avdyli', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: 'N/A' },
-            { name: 'Frederick Abunku', monday: '6pm-10pm', tuesday: '6pm-10pm', wednesday: '6pm-10pm', thursday: 'BUA', friday: 'N/A' },
-            { name: 'Daniel Cox', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'NVA', friday: 'NA' },
-            { name: 'Shaquille Hamilton', monday: '8:30am-3pm', tuesday: '8:30am-3pm', wednesday: '8:30am-3pm', thursday: '8:30am-3pm', friday: 'N' },
-            { name: 'Valery Cardona', monday: '9-4', tuesday: '9-4 pm (NEW)', wednesday: '9-4 pm (NEW]', thursday: '9-4 pm (NEW)', friday: '9-4 pm (NEW)' },
-            { name: 'Mellanie Benitez', monday: '9-4 pm (NEW)', tuesday: '9-4 pm (NEW)', wednesday: '9-4 pm (NEW]', thursday: '9-4 pm (NEW)', friday: '9-4 pm. (NEW)' },
-            { name: 'Lenny Brosnan', monday: 'INA', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: 'TUA' },
-            { name: 'Will McGarvey', monday: 'Barm-3pm NEW', tuesday: '8am-3pm NEW', wednesday: 'Barm-3pm NEW', thursday: '8am-3pm NEW', friday: 'Bam-3pm NEW' },
-            { name: 'Robert Childers', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available (NEW)' },
-            { name: 'Felix Liew', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available' },
-            { name: 'Petra Frinculescu', monday: '1-10 pm NEW', tuesday: '9-4pm NEW', wednesday: '1-10pm NEW', thursday: '9-4pm NEW', friday: '1-10pm NEW' },
-            { name: 'Bilal Afzal', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'NICA' },
-            { name: 'Orlando Olmedo', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available' },
-            { name: 'Sophia Rodriguez', monday: 'Available NEW', tuesday: 'Available NEW', wednesday: 'Available NEW', thursday: 'Available NEW', friday: 'Available NEW' },
-            { name: 'Rohan D\'Souza', monday: '7a-9am, 12pm-10pm', tuesday: '', wednesday: '7a-9am, 12pm-10pm', thursday: '7am-3pm', friday: '7a-9am, 12-5pm' },
+            { name: 'John Warren', email: 'john.warren@usta.com', monday: '9a-8:30p', tuesday: '9a-8:30p', wednesday: '9a-8:30p', thursday: '9a-8:30p', friday: '9a-8:30p', saturday: 'Not Available', sunday: 'Not Available' },
+            { name: 'Rod Bailey', email: 'bailey@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: '', saturday: 'Available', sunday: 'Available' },
+            { name: 'Lindsay Baum', email: 'lindsay.baum@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available', saturday: 'Available', sunday: 'Available' },
+            { name: 'Justyna Wereszka', email: 'Justyna.wereszka@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available NEW', friday: 'Available NEW', saturday: 'Not Available NEW', sunday: 'Not Available NEW' },
+            { name: 'David Parra-Newton', email: 'david.parra-newton@usta.com', monday: '9am-7pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-5:30pm NEW', saturday: 'N/A', sunday: 'N/A NEW' },
+            { name: 'Leo Correa', email: 'leo.correa@usta.com', monday: '9am-8:30 pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30 pm NEW', thursday: '9am-8:30 pm NEW', friday: '9am-6:30pm NEW', saturday: 'OFF NEW', sunday: 'OFF NEW' },
+            { name: 'Nouri El-Hajjar', email: 'hajjar@usta.com', monday: '9am-8:30 pm', tuesday: '9-8:30 pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-4pm NEW', saturday: 'Not Available NEW', sunday: '-N/A' },
+            { name: 'Danny Ahn', email: 'danny.ahn@lusta.com', monday: '9am-8:30pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-4pm NEW', saturday: '', sunday: '(Summer NEW' },
+            { name: 'Osas Akinniranye', email: 'osas.akinniranye@usta.com', monday: 'Available 9am', tuesday: 'Available 9am', wednesday: 'Available 9am', thursday: 'Available 9am', friday: 'Available 9am', saturday: 'Unavailable NEW', sunday: '' },
+            { name: 'Stever Forte', email: 'Steven.forte@usta.com', monday: '9-8:30pm', tuesday: '9-8:30pm NEW', wednesday: '9-8:30pm NEW', thursday: '9-8:30pm NEW', friday: '', saturday: '9am-6:30pm', sunday: '' },
+            { name: 'Ziryab Ahmed', email: 'ziryab.ahmed@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available', saturday: '', sunday: '' },
+            { name: 'Karla Noboa', email: 'karla.noboa@usta.com', monday: 'New 10am-8:30pm', tuesday: 'New 10am-8:30pm', wednesday: 'Available 10am-8:30prn', thursday: 'Available 10arn 8:30pm', friday: '9am-9:30pm', saturday: 'NEW OFF', sunday: 'NEW-OFF' },
+            { name: 'Zack Ray', email: 'dedric.ray@usta.com', monday: 'Off', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available', saturday: '9AM-6:30 PM NEW', sunday: 'Off' },
+            { name: 'Omer Khalifa', email: 'omer.khalifa@usta.com', monday: 'Available (New!)', tuesday: 'Available (New)', wednesday: 'Available (New)', thursday: 'Available (New)', friday: 'Available (New)', saturday: 'Off(new)**', sunday: 'Off (New)' },
+            { name: 'Gustavo Alcayaga', email: 'gustavo.alcayaga@usta.com', monday: 'Summer 2025 9-4 pm', tuesday: 'Summer 2025 9-4 pm', wednesday: 'Summer 20259-4 pm', thursday: 'Summer 2025 9-4 pm', friday: 'Summer 2025 9-4 pm', saturday: 'N/A', sunday: 'N/A' },
+            { name: 'Valeria Torres', email: 'valeria.torres@lusta.com', monday: 'NArbr', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: '8 am-6pm NEW', saturday: 'N/A', sunday: 'N/A' },
+            { name: 'Alex Hagiu', email: 'alexander.hagiu@usta.com', monday: 'Available', tuesday: 'N/A', wednesday: 'Available', thursday: 'N/A', friday: 'NA', saturday: 'Available', sunday: 'Available' },
+            { name: 'Peter Wang', email: 'peter.wang@usta.com', monday: 'N/A', tuesday: '9am-8:30pm', wednesday: 'N/A', thursday: '9am 8:30pm', friday: '2pm-8:30pm', saturday: 'N/A', sunday: 'NA' },
+            { name: 'Farhad Roshashanie', email: 'farhad.roshanale@usta.com', monday: 'INIA', tuesday: 'NXAC', wednesday: 'NIA', thursday: 'NOW', friday: 'N/A', saturday: 'NIA', sunday: 'NA' },
+            { name: 'Jinny Welch', email: 'jinny.welch@usta.com', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'NUA', friday: 'N/A NEW', saturday: 'N/A NEW', sunday: 'N/A' },
+            { name: 'Viola Avdyli', email: 'viola.avdylimusta.com', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: 'N/A', saturday: '9am-4:30pm', sunday: '9am-4:30' },
+            { name: 'Frederick Abunku', email: 'frederick.abunku@usta.com', monday: '6pm-10pm', tuesday: '6pm-10pm', wednesday: '6pm-10pm', thursday: 'BUA', friday: 'N/A', saturday: 'NIA', sunday: 'N/A' },
+            { name: 'Daniel Cox', email: 'daniel.cox@usta.com', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'NVA', friday: 'NA', saturday: 'NA NEW', sunday: 'NA NEW' },
+            { name: 'Shaquille Hamilton', email: 'shaquille.hamilton@usta.com', monday: '8:30am-3pm', tuesday: '8:30am-3pm', wednesday: '8:30am-3pm', thursday: '8:30am-3pm', friday: 'N', saturday: '9am-2pm', sunday: 'N' },
+            { name: 'Valery Cardona', email: 'valery.calderon@usta.com', monday: '9-4', tuesday: '9-4 pm (NEW)', wednesday: '9-4 pm (NEW]', thursday: '9-4 pm (NEW)', friday: '9-4 pm (NEW)', saturday: 'NWA INEW', sunday: 'NA' },
+            { name: 'Mellanie Benitez', email: 'mellanie.benitez@usta.com', monday: '9-4 pm (NEW)', tuesday: '9-4 pm (NEW)', wednesday: '9-4 pm (NEW]', thursday: '9-4 pm (NEW)', friday: '9-4 pm. (NEW)', saturday: '9am-12pm', sunday: 'N/A' },
+            { name: 'Lenny Brosnan', email: 'leonard.brosnan@usta.com', monday: 'INA', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: 'TUA', saturday: 'N/A', sunday: 'N/A' },
+            { name: 'Will McGarvey', email: 'william.mcgarvey@usta.com', monday: 'Barm-3pm NEW', tuesday: '8am-3pm NEW', wednesday: 'Barm-3pm NEW', thursday: '8am-3pm NEW', friday: 'Bam-3pm NEW', saturday: '', sunday: 'Barm-3pm NEW' },
+            { name: 'Robert Childers', email: 'robert.childers@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available (NEW)', saturday: 'Available (NEW)', sunday: 'Available' },
+            { name: 'Felix Liew', email: 'felix.liewusta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available', saturday: 'Available (New]', sunday: 'Citt (New)' },
+            { name: 'Petra Frinculescu', email: 'petra.frinculescu@usta.com', monday: '1-10 pm NEW', tuesday: '9-4pm NEW', wednesday: '1-10pm NEW', thursday: '9-4pm NEW', friday: '1-10pm NEW', saturday: 'NANEW', sunday: 'N/A' },
+            { name: 'Bilal Afzal', email: 'bilal.afzal@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'NICA', saturday: '9a-4:30p', sunday: '9a-4:30p' },
+            { name: 'Orlando Olmedo', email: 'alvaro.olmedo@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available', saturday: 'Available', sunday: 'Available' },
+            { name: 'Sophia Rodriguez', email: 'sophia.rodriguez2@usta.com', monday: 'Available NEW', tuesday: 'Available NEW', wednesday: 'Available NEW', thursday: 'Available NEW', friday: 'Available NEW', saturday: 'N/A', sunday: 'N/A' },
+            { name: 'Rohan D\'Souza', email: 'rohan.dsouza@usta.com', monday: '7a-9am, 12pm-10pm', tuesday: '', wednesday: '7a-9am, 12pm-10pm', thursday: '7am-3pm', friday: '7a-9am, 12-5pm', saturday: 'N/A', sunday: 'N/A' },
         ];
 
-        const ALL_CLASSES = {
-            Monday: [
-                { name: 'Weekday Novice 102', time: '9A' },
-                { name: 'Weekday NTC Rally', time: '9A' },
-                { name: 'Round Robin', time: '10A' },
-                { name: 'Weekday Drill & Play (Silver)', time: '10A' },
-                { name: 'Round Robin', time: '11:30A' },
-                { name: 'Weekday Lead Pro (Bronze)', time: '10:30A' },
-                { name: 'Weekday NTC Daylights (Rally)', time: '12P' },
-            ],
-            Tuesday: [
-                { name: 'NTC Breakfast Club (Bronze)', time: '7:30A' },
-                { name: 'Weekday Stroke Series', time: '9A' },
-                { name: 'Weekday Intro To Tennis', time: '9A' },
-                { name: 'Weekday NTC Bronze', time: '10A' },
-                { name: 'Weekday Novice 102', time: '10A' },
-                { name: 'Weekday Advanced Zone', time: '10:30A' },
-                { name: 'Weekday NTC Gold', time: '10A' },
-                { name: 'Weekday Intro To Tennis', time: '11:30A' },
-            ],
-            Wednesday: [
-                { name: 'Round Robin', time: '10A' },
-                { name: 'Round Robin', time: '11:30A' },
-                { name: 'NTC Breakfast Club (Rally)', time: '7:30A' },
-                { name: 'Weekday Lead Pro (Bronze)', time: '9A' },
-                { name: 'Weekday Novice 102', time: '9A' },
-                { name: 'Weekday NTC Rally', time: '9A' },
-                { name: 'Weekday NTC Silver', time: '10:30A' },
-                { name: 'Weekday Intro To Tennis', time: '10:30A' },
-                { name: 'NTC Daylights (Bronze)', time: '10:30A' },
-            ],
-            Thursday: [
-                { name: 'Round Robin', time: '10A' },
-                { name: 'Round Robin', time: '11:30A' },
-                { name: 'NTC Breakfast Club (Silver)', time: '7:30A' },
-                { name: 'Weekday Lead Pro (Bronze)', time: '9A' },
-                { name: 'Weekday Lead Pro (Silver)', time: '10:30A' },
-                { name: 'Weekday Advanced Zone', time: '10:30A' },
-                { name: 'Weekday NTC Daylights (Rally)', time: '12P' },
-                { name: 'Evaluations', time: '9 to 10:30A' },
-            ],
-            Friday: [
-                { name: 'Director\'s Cut (Silver)', time: '9A' },
-                { name: 'Weekday Intro To Tennis', time: '9A' },
-                { name: 'Weekday Novice 102', time: '10A' },
-                { name: 'Weekday NTC Bronze', time: '10A' },
-                { name: 'Weekday NTC Rally', time: '10:30A' },
-            ]
+        // Define all dates for each day
+        const ALL_DATES_BY_DAY = {
+            Monday: ['9/15', '9/22', '9/29', '10/6', '10/13', '10/20', '10/27', '11/3', '11/10', '11/17', '11/24', '12/1', '12/8', '12/15', '12/22', '12/29', '1/5'],
+            Tuesday: ['9/16', '9/23', '9/30', '10/7', '10/14', '10/21', '10/28', '11/4', '11/11', '11/18', '11/25', '12/2', '12/9', '12/16', '12/23', '12/30', '1/6'],
+            Wednesday: ['9/17', '9/24', '10/1', '10/8', '10/15', '10/22', '10/29', '11/5', '11/12', '11/19', '11/26', '12/3', '12/10', '12/17', '12/24', '12/31', '1/7'],
+            Thursday: ['9/18', '9/25', '10/2', '10/9', '10/16', '10/23', '10/30', '11/6', '11/13', '11/20', '11/27', '12/4', '12/11', '12/18', '12/25', '1/1', '1/8'],
+            Friday: ['9/19', '9/26', '10/3', '10/10', '10/17', '10/24', '10/31', '11/7', '11/14', '11/21', '11/28', '12/5', '12/12', '12/19', '12/26', '1/2', '1/9'],
+            Saturday: ['9/20', '9/27', '10/4', '10/11', '10/18', '10/25', '11/1', '11/8', '11/15', '11/22', '11/29', '12/6', '12/13', '12/20', '12/27', '1/3', '1/10'],
+            Sunday: ['9/21', '9/28', '10/5', '10/12', '10/19', '10/26', '11/2', '11/9', '11/16', '11/23', '11/30', '12/7', '12/14', '12/21', '12/28', '1/4', '1/11']
+        };
+
+        const SCHEDULE_CATEGORIES = {
+            Daytime: {
+                Monday: [
+                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: ['Court 10', 'Court 10', 'Court 7', null, null, null, null, null, null, null, null, null, null, null, null, null, 'Court 7'] },
+                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: ['Court 10, 11', 'Court 10, 11', 'Court 8-9', null, null, null, null, null, null, null, null, null, null, null, null, null, 'Court 8-9'] },
+                    { name: 'Weekday Drill & Play (Silver)', time: '10A', weeklyCourts: ['Court 11, 12', 'Court 11, 12', 'Court 10-11', null, null, null, null, null, null, null, null, null, null, null, null, null, 'Court 10-11'] },
+                    { name: 'Weekday Lead Pro (Bronze)', time: '10:30A', weeklyCourts: ['Court 10, 11', 'Court 10, 11', 'Court 7-8', null, null, null, null, null, null, null, null, null, null, null, null, null, 'Court 7-8'] },
+                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: ['Court 10,11', 'Court 10, 11', 'Court 7-8', null, null, null, null, null, null, null, null, null, null, null, null, null, 'Court 7-8'] },
+                    { name: 'Round Robin', time: '10A', weeklyCourts: ['Court 7 - 9', 'Court 7 - 9', 'Court 1-6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Round Robin', time: '11:30A', weeklyCourts: ['Court 7 - 9', 'Court 7 - 9', 'Court 1-6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                ],
+                Tuesday: [
+                    { name: 'NTC Breakfast Club (Bronze)', time: '7:30A', weeklyCourts: ['Court 7, 8', 'Court 7,8', 'Court 1,2', null, null, null, null, 'Court 5', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Stroke Series', time: '9A', weeklyCourts: ['Court 7,8,9', 'Court 7,8,9', 'Court 2,3,4', null, null, null, null, 'Court 7-9', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: ['Court 10', 'Court 10', 'Court 1', null, null, null, null, 'Court 5', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: ['Court 7,8,9', 'Court 7,8,9', 'Court 2-5', null, null, null, null, 'Court 7-10', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: ['Court 16', 'Court 16', 'Court 7', null, null, null, null, 'Court 7', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: ['Court 10', 'Court 10', 'Court 1', null, null, null, null, 'Court 5', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday NTC Gold', time: '10A', weeklyCourts: ['Court 15, 14', 'Court 15, 14', 'Court 8--9', null, null, null, null, 'Court 11-12', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Intro To Tennis', time: '11:30A', weeklyCourts: ['Court 16', 'Court 16', 'Court 7-8', null, null, null, null, 'Court 7', null, null, null, null, null, null, null, null, null] },
+                ],
+                Wednesday: [
+                    { name: 'Round Robin', time: '10A', weeklyCourts: ['Court 7-9', 'Court 7-9', 'Court 1-6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Round Robin', time: '11:30A', weeklyCourts: ['Court 7-9', 'Court 7-9', 'Court 1-6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Breakfast Club (Rally)', time: '7:30A', weeklyCourts: ['Court 10', 'Court 10', 'Court 7', null, null, null, null, 'Court 10', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: ['COurt 10', 'Court 10', 'Court 7', null, null, null, null, 'Court 10', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: ['Court 11', 'Court 11', 'Court 8', null, null, null, null, 'Court 11', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: ['Court 12', 'Court 12', 'Court 9', null, null, null, null, 'Court 12', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday NTC Silver', time: '10:30A', weeklyCourts: ['Court 10', 'Court 10', 'Court 7', null, null, null, null, 'Court 10', null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Intro To Tennis', time: '10:30A', weeklyCourts: ['Court 11', 'Court 11', 'Court 8', null, null, null, null, 'Court 11', null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Daylights (Bronze)', time: '10:30A', weeklyCourts: ['Court 12', 'Court 12', 'Court 9', null, null, null, null, 'Court 12', null, null, null, null, null, null, null, null, null] },
+                ],
+                Thursday: [
+                    { name: 'Round Robin', time: '10A', weeklyCourts: ['Court 7-9', 'Court 7-9', 'Court 1-6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Round Robin', time: '11:30A', weeklyCourts: ['Court 7-9', 'Court 7-9', 'Court 1-6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Breakfast Club (Silver)', time: '7:30A', weeklyCourts: ['Court 10', 'Court 10', 'Court 7', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: ['Court 10', 'Court 10', 'Court 7', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Lead Pro (Silver)', time: '10:30A', weeklyCourts: ['Court 10', 'Court 10', 'Court 7', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: ['Court 11', 'Court 11', 'Court 8', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: ['Court 10', 'Court 10', 'Court 7', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Evaluations', time: '9 to 10:30A', weeklyCourts: ['Court 11', 'Court 11', 'Court 8', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                ],
+                Friday: [
+                    { name: 'Director\'s Cut (Silver)', time: '9A', weeklyCourts: ['Court 7-8', 'Court 7-8', 'Court 7-8', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: ['Court 9', 'Court 9', 'Court 9', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: ['Court 10-11', 'Court 10-11', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: ['Court 12', 'Court 12', 'Court 3', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Weekday NTC Rally', time: '10:30A', weeklyCourts: ['Court 7-9', 'Court 7-9', 'Court 7-9', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                ]
+            },
+            Evenings: {
+                Monday: [
+                    { name: 'Intro To Tennis', time: '6P', weeklyCourts: ['Court 13', 'Court 13', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Intro To Tennis', time: '7P', weeklyCourts: ['Court 7', 'Court 7', 'Court 7', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Novice 102', time: '7P', weeklyCourts: ['Court 10-12', 'Court 10-12', 'Court 10-12', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '7P', weeklyCourts: ['Court 7-9', 'Court 7-9', 'Court 7-9', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '8P', weeklyCourts: ['Court 11,12', 'Court 11,12', 'Court 5,6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Silver', time: '8P', weeklyCourts: ['Court 14', 'Court 14', 'Court 4', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Gold', time: '7P', weeklyCourts: ['Court 12', 'Court 12', 'Court 12', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Stroke Series: Volley', time: '8:30P', weeklyCourts: ['Court 8,9', 'Court 8,9', 'Court 8,9', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Zone', time: '8P', weeklyCourts: ['Court 16,15', 'Court 16,15', 'Court 2,3', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Night Lights (Gold)', time: '7:30P', weeklyCourts: ['Court 13', 'Court 13', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Drill & Play (Bronze)', time: '6P', weeklyCourts: ['Court 16,15,14', 'Court 16,15,14', 'Court 2-4', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                ],
+                Tuesday: [
+                    { name: 'Intro to Tennis 101', time: '6:00 PM', weeklyCourts: ['Court 10', 'Court 10', 'Court 10', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Intro to Tennis 101', time: '7:00 PM', weeklyCourts: ['Court 11', 'Court 11', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '6PM', weeklyCourts: ['Court 11', 'Court 11', 'Court 11', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '8P', weeklyCourts: ['Court 15,16', 'Court 15,16', 'Court 5-9', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '8:30 PM', weeklyCourts: ['Court 11', 'Court 11', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Silver', time: '7:30 PM', weeklyCourts: ['Court 10', 'Court 10', 'Court 10', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Stroke SERVE', time: '7:00 PM', weeklyCourts: ['Court 7,8', 'Court 7,8', 'Court 7,8', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: ['Court 11,12', 'Court 11,12', 'Court 11,12', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Night Lights (Silver)', time: '7P', weeklyCourts: ['Court 12', 'Court 12', 'Court 2', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Night Lights (Gold)', time: '8:30P', weeklyCourts: ['Court 12', 'Court 12', 'Court 2', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Drill & Play Silver', time: '7:00 PM', weeklyCourts: ['Court 13', 'Court 13', 'Court 3', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Drill & Play Gold', time: '8:00 PM', weeklyCourts: ['Court 14', 'Court 14', 'Court 4', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                ],
+                Wednesday: [
+                    { name: 'Intro to Tennis 101', time: '8:00 PM', weeklyCourts: ['Court 11', 'Court 11', 'Court 2', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Novice 102', time: '7:00 PM', weeklyCourts: ['Court 10,11', 'Court 10,11', 'Court 10,11', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Novice 102', time: '8:00 PM', weeklyCourts: ['Court 12', 'Court 12', 'Court 3', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '7:00 PM', weeklyCourts: ['Court 12', 'Court 12', 'Court 12', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '8:30 PM', weeklyCourts: ['Court 10', 'Court 10', 'Court 10', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '8:00 PM', weeklyCourts: ['Court 14', 'Court 14', 'Court 5', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Silver', time: '8:00 PM', weeklyCourts: ['Court 13', 'Court 13', 'Court 6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Gold', time: '8:00 PM', weeklyCourts: ['Court 15', 'Court 15', 'Court 4', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Gold', time: '8:30P', weeklyCourts: ['Court 7', 'Court 7', 'Court 7', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'ZONE', time: '7:00 PM', weeklyCourts: ['Court 7,8', 'Court 7,8', 'Court 7,8', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Advanced ZONE', time: '7:00 PM', weeklyCourts: ['Court 9', 'Court 9', 'Court 9', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Night Lights Rally', time: '8:00 PM', weeklyCourts: ['Court 16', 'Court 16', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Night Lights Rally', time: '8:30 PM', weeklyCourts: ['Court 8', 'Court 8', 'Court 8', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Drill & Play Rally', time: '6:00 PM', weeklyCourts: ['Court 16', 'Court 16', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                ],
+                Thursday: [
+                    { name: 'NTC Bronze', time: '5:30 PM', weeklyCourts: ['Court 7', 'Court 7', 'Court 7', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '7P', weeklyCourts: ['Court 7,8', 'Court 7,8', 'Court 7,8', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '7:00 PM', weeklyCourts: ['Court 9', 'Court 9', 'Court 9', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Stroke BACKHAND', time: '6:00 PM', weeklyCourts: ['Court 8-9', 'Court 8-9', 'Court 8-9', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '7:30P', weeklyCourts: ['Court 8,9,10', 'Court 8,9,10', 'Court 1,2,5', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '8P', weeklyCourts: ['Court 14', 'Court 14', 'Court 3', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Advanced Zone', time: '8P', weeklyCourts: ['Court 15', 'Court 15', 'Court 4', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Zone', time: '8P', weeklyCourts: ['Court 16,15', 'Court 16', 'Court 6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Night Lights (Gold)', time: '6P', weeklyCourts: ['Court 16,15', 'Court 16,15', 'Court 3,4', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                ],
+                Friday: [
+                    { name: 'Novice 102', time: '5:30 PM', weeklyCourts: ['Court 10,11', 'Court 10,11', 'Court 10,11', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '7:30 PM', weeklyCourts: ['Court 16,15', 'Court 16,15', 'Court 1,2', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '7:30P', weeklyCourts: ['Court 14,13', 'Court 14,13', 'Court 3,4', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: ['Court 11,12', 'Court 11,12', 'Court 5,6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Night Lights (Silver)', time: '7P', weeklyCourts: ['Court 12', 'Court 12', 'Court 12', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                ]
+            },
+            Weekends: {
+                Saturday: [
+                    { name: 'Intro To Tennis 101', time: '9:00A', weeklyCourts: ['Court 10,11,12', 'Court 10,11,12', 'Court 10,11,12', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Intro To Tennis 101', time: '10:30A', weeklyCourts: ['Court 13', 'Court 13', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Intro To Tennis 101', time: '12:00P', weeklyCourts: ['Court 13', 'Court 13', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Novice 102', time: '10:30A', weeklyCourts: ['Court 10,11', 'Court 10,11', 'Court 10,11', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Novice 102', time: '12:00P', weeklyCourts: ['Court 12', 'Court 12', 'Court 12', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '9:00A', weeklyCourts: ['Court 11', 'Court 11', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '10:30A', weeklyCourts: ['Court 11', 'Court 11', 'Court 2', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '12:00P', weeklyCourts: ['Court 10,11', 'Court 10,11', 'Court 10,11', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '9:00A', weeklyCourts: ['Court 2,3', 'Court 2,3', 'Court 2,3', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '10:30A', weeklyCourts: ['Court 12', 'Court 12', 'Court 12', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '12:00P', weeklyCourts: ['Court 14', 'Court 14', 'Court 2', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Silver', time: '10:30A', weeklyCourts: ['Court 16,15,14', 'Court 16,15,14', 'Court 4,5,6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Gold', time: '12:00P', weeklyCourts: ['Court 16,15', 'Court 16,15', 'Court 3,4', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'ZONE', time: '9:00A', weeklyCourts: ['Court 16,15,14', 'Court 16,15,14', 'Court 4,5,6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Advanced ZONE', time: '1:30P', weeklyCourts: ['Court 1', 'Court 1', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                ],
+                Sunday: [
+                    { name: 'Intro To Tennis 101', time: '10:30A', weeklyCourts: ['Court 10,11', 'Court 10,11', 'Court 10,11', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Novice 102', time: '9:00A', weeklyCourts: ['Court 10,11', 'Court 10,11', 'Court 10,11', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Novice 102', time: '10:30A', weeklyCourts: ['Court 12', 'Court 12', 'Court 12', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '9:00A', weeklyCourts: ['Court 16,15,14', 'Court 16,15,14', 'Court 1,2,3', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '9:00A', weeklyCourts: ['Court 8,9,10', 'Court 8,9,10', 'Court 4,5,6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '10:30A', weeklyCourts: ['Court 16,15', 'Court 16,15', 'Court 5,6', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'Advanced ZONE', time: '10:30A', weeklyCourts: ['Court 11', 'Court 11', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Bronze', time: '10:30A', weeklyCourts: ['Court 14,13', 'Court 14,13', 'Court 3,4', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Silver', time: '12:00P', weeklyCourts: ['Court 14', 'Court 14', 'Court 5', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Gold', time: '12:00P', weeklyCourts: ['Court 16,15', 'Court 16,15', 'Court 3,4', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'ZONE', time: '12:00P', weeklyCourts: ['Court 11', 'Court 11', 'Court 1,2,3', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                    { name: 'NTC Rally', time: '1:30P', weeklyCourts: ['Court 11', 'Court 11', 'Court 1', null, null, null, null, null, null, null, null, null, null, null, null, null, null] },
+                ]
+            }
         };
 
         // Your Firebase Configuration
@@ -138,7 +263,9 @@
         let auth;
         let currentUserId;
         let scheduleState;
-        let currentDay = 'Monday';
+        let currentCategory = 'Daytime'; // New: Default to Daytime
+        let currentDay = 'Monday'; // Default to Monday
+        let currentWeekIndex = 0; // Index for current week in ALL_DATES_BY_DAY
 
         // Helper function to parse time strings into minutes from midnight for comparison
         const parseTime = (timeStr) => {
@@ -171,7 +298,7 @@
                 return true;
             }
 
-            const unavailableKeywords = ['off', 'n/a', 'nia', 'tua', 'unavailable', 'inarbr', 'nva', 'nica', 'bua', 'now'];
+            const unavailableKeywords = ['off', 'n/a', 'nia', 'tua', 'unavailable', 'inarbr', 'nva', 'nica', 'bua', 'now', 'n', '']; // Added empty string for Rod Bailey Friday
             if (unavailableKeywords.some(keyword => proAvailability.toLowerCase().includes(keyword))) {
                 return false;
             }
@@ -185,7 +312,7 @@
                     const startTime = parseTime(startStr);
                     const endTime = parseTime(endStr);
                     if (startTime !== null && endTime !== null) {
-                        if (endTime < startTime) {
+                        if (endTime < startTime) { // Handles overnight shifts
                             if ((classStartTime >= startTime && classStartTime <= 24*60) || (classEndTime >= 0 && classEndTime <= endTime)) {
                                 return true;
                             }
@@ -209,16 +336,27 @@
 
         const initializeScheduleData = () => {
             const initialSchedule = {};
-            Object.keys(ALL_CLASSES).forEach(day => {
-                initialSchedule[day] = {};
-                ALL_CLASSES[day].forEach(classItem => {
-                    const availablePros = PRO_AVAILABILITY_DATA
-                        .filter(pro => isProAvailableForClass(pro[day.toLowerCase()], classItem.time))
-                        .map(pro => pro.name);
-                    initialSchedule[day][classItem.name] = {
-                        pros: [],
-                        availablePros: availablePros.sort(),
-                    };
+            Object.keys(SCHEDULE_CATEGORIES).forEach(category => {
+                initialSchedule[category] = {};
+                Object.keys(SCHEDULE_CATEGORIES[category]).forEach(day => {
+                    initialSchedule[category][day] = {};
+                    SCHEDULE_CATEGORIES[category][day].forEach(classItem => {
+                        initialSchedule[category][day][classItem.name] = {
+                            weeklyAssignments: {}
+                        };
+                        ALL_DATES_BY_DAY[day].forEach((date, index) => {
+                            const dayAvailabilityKey = day.toLowerCase();
+                            const availablePros = PRO_AVAILABILITY_DATA
+                                .filter(pro => isProAvailableForClass(pro[dayAvailabilityKey], classItem.time))
+                                .map(pro => pro.name);
+                            
+                            initialSchedule[category][day][classItem.name].weeklyAssignments[date] = {
+                                pros: [],
+                                availablePros: availablePros.sort(),
+                                court: classItem.weeklyCourts[index] || null // Store court info here
+                            };
+                        });
+                    });
                 });
             });
             return initialSchedule;
@@ -228,23 +366,33 @@
             const container = document.getElementById('schedule-container');
             container.innerHTML = '';
             
-            if (!scheduleState || !scheduleState[currentDay]) {
+            const currentWeekDate = ALL_DATES_BY_DAY[currentDay]?.[currentWeekIndex];
+            document.getElementById('currentWeekDisplay').innerText = currentWeekDate ? `Week of ${currentWeekDate}` : 'No Week Selected';
+
+            if (!scheduleState || !scheduleState[currentCategory] || !scheduleState[currentCategory][currentDay] || !currentWeekDate) {
                 container.innerHTML = `<p class="text-center text-gray-400">Loading schedule...</p>`;
                 return;
             }
 
-            const classesForDay = ALL_CLASSES[currentDay];
-            const scheduleForDay = scheduleState[currentDay];
+            const classesForDay = SCHEDULE_CATEGORIES[currentCategory][currentDay];
+            const scheduleForDay = scheduleState[currentCategory][currentDay];
 
             if (!classesForDay || classesForDay.length === 0) {
-                container.innerHTML = `<p class="text-center text-gray-400">No classes scheduled for ${currentDay}.</p>`;
+                container.innerHTML = `<p class="text-center text-gray-400">No classes scheduled for ${currentDay} in ${currentCategory} session.</p>`;
                 return;
             }
 
             classesForDay.forEach(classItem => {
-                const classState = scheduleForDay[classItem.name];
-                const assignedPros = classState.pros;
-                const availablePros = classState.availablePros;
+                const classWeekState = scheduleForDay[classItem.name]?.weeklyAssignments[currentWeekDate];
+                
+                // If class is not offered this week, skip rendering its card
+                if (!classWeekState || classWeekState.court === null) {
+                    return;
+                }
+
+                const assignedPros = classWeekState.pros;
+                const availablePros = classWeekState.availablePros;
+                const courtInfo = classWeekState.court;
 
                 const assignedProsHtml = assignedPros.length > 0
                     ? assignedPros.map(pro => `<span class="inline-block bg-emerald-700 text-white text-sm px-3 py-1 rounded-full font-semibold">${pro}</span>`).join(' ')
@@ -252,15 +400,15 @@
 
                 const prosCheckboxes = availablePros.map(pro => {
                     const isChecked = assignedPros.includes(pro);
-                    // A pro is disabled if they are already assigned to another class at the same time slot
+                    // A pro is disabled if they are already assigned to another class at the same time slot on THIS specific week
                     const isAssignedElsewhereAtSameTime = Object.keys(scheduleForDay)
                         .filter(otherClassName => otherClassName !== classItem.name)
                         .some(otherClassName => {
-                            const otherClassTime = ALL_CLASSES[currentDay].find(c => c.name === otherClassName)?.time;
+                            const otherClassTime = SCHEDULE_CATEGORIES[currentCategory][currentDay].find(c => c.name === otherClassName)?.time;
                             const currentClassTime = classItem.time;
-                            // Check if the times overlap. For simplicity, we'll consider exact time matches for now.
-                            // For more complex overlaps, a more robust time comparison function would be needed.
-                            return otherClassTime === currentClassTime && scheduleForDay[otherClassName].pros.includes(pro);
+                            const otherClassWeekState = scheduleForDay[otherClassName]?.weeklyAssignments[currentWeekDate];
+
+                            return otherClassTime === currentClassTime && otherClassWeekState?.pros.includes(pro);
                         });
                     
                     const isDisabled = isAssignedElsewhereAtSameTime && !isChecked;
@@ -269,13 +417,14 @@
                         <label class="flex items-center space-x-2 text-gray-300 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}">
                             <input
                                 type="checkbox"
-                                name="pro-${classItem.name}"
+                                name="pro-${classItem.name}-${currentWeekDate}"
                                 value="${pro}"
                                 class="form-checkbox h-4 w-4 text-emerald-500 rounded-md"
                                 ${isChecked ? 'checked' : ''}
                                 ${isDisabled ? 'disabled' : ''}
                                 data-class-name="${classItem.name}"
                                 data-pro-name="${pro}"
+                                data-week-date="${currentWeekDate}"
                             />
                             <span>${pro}</span>
                         </label>
@@ -285,7 +434,8 @@
                 const cardHtml = `
                     <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 hover:border-emerald-500 transition-all duration-300">
                         <h2 class="text-2xl font-bold mb-2 text-white">${classItem.name}</h2>
-                        <p class="text-gray-400 mb-4">Time: ${classItem.time}</p>
+                        <p class="text-gray-400 mb-2">Time: ${classItem.time}</p>
+                        <p class="text-gray-400 mb-4">Court: ${courtInfo}</p>
                         <div class="mb-4">
                             <h3 class="text-lg font-semibold text-emerald-300 mb-2">Assigned Pros:</h3>
                             <div class="flex flex-wrap gap-2">
@@ -294,9 +444,15 @@
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold text-gray-300 mb-2">Available Pros:</h3>
-                            <div class="flex flex-wrap gap-4">
+                            <div class="flex flex-wrap gap-4 mb-4">
                                 ${prosCheckboxes}
                             </div>
+                            <button class="assign-all-instances-btn px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                                    data-class-name="${classItem.name}"
+                                    data-current-category="${currentCategory}"
+                                    data-current-day="${currentDay}">
+                                Assign All Instances for This Day
+                            </button>
                         </div>
                     </div>
                 `;
@@ -305,20 +461,27 @@
 
             document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.addEventListener('change', (e) => {
-                    const { className, proName } = e.target.dataset;
+                    const { className, proName, weekDate } = e.target.dataset;
                     const isChecked = e.target.checked;
-                    handleAssignPro(className, proName, isChecked);
+                    handleAssignPro(className, proName, isChecked, weekDate);
+                });
+            });
+
+            document.querySelectorAll('.assign-all-instances-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const { className, currentCategory: categoryForAssignment, currentDay: dayForAssignment } = e.target.dataset;
+                    assignAllInstancesForClass(className, categoryForAssignment, dayForAssignment);
                 });
             });
         };
 
-        const handleAssignPro = async (className, proName, isChecked) => {
+        const handleAssignPro = async (className, proName, isChecked, weekDate) => {
             if (!db || !currentUserId) {
                 console.error("Database not ready.");
                 return;
             }
 
-            const currentAssignments = scheduleState[currentDay][className].pros;
+            const currentAssignments = scheduleState[currentCategory][currentDay][className].weeklyAssignments[weekDate].pros;
             let newAssignments;
 
             if (isChecked) {
@@ -330,11 +493,20 @@
             // Update the local scheduleState immediately for responsiveness
             scheduleState = {
                 ...scheduleState,
-                [currentDay]: {
-                    ...scheduleState[currentDay],
-                    [className]: {
-                        ...scheduleState[currentDay][className],
-                        pros: newAssignments,
+                [currentCategory]: {
+                    ...scheduleState[currentCategory],
+                    [currentDay]: {
+                        ...scheduleState[currentCategory][currentDay],
+                        [className]: {
+                            ...scheduleState[currentCategory][currentDay][className],
+                            weeklyAssignments: {
+                                ...scheduleState[currentCategory][currentDay][className].weeklyAssignments,
+                                [weekDate]: {
+                                    ...scheduleState[currentCategory][currentDay][className].weeklyAssignments[weekDate],
+                                    pros: newAssignments,
+                                },
+                            },
+                        },
                     },
                 },
             };
@@ -342,7 +514,7 @@
             renderSchedule();
 
             // Update Firestore
-            const appIdForFirestore = firebaseConfig.projectId; // Use projectId for the Firestore path
+            const appIdForFirestore = firebaseConfig.projectId;
             const scheduleDocRef = doc(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/scheduleData`);
             try {
                 await setDoc(scheduleDocRef, { schedule: scheduleState });
@@ -351,12 +523,129 @@
             }
         };
 
-        const renderTabs = () => {
-            const tabContainer = document.getElementById('day-tabs');
-            tabContainer.innerHTML = '';
-            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        const assignAllInstancesForClass = async (className, categoryForAssignment, dayForAssignment) => {
+            if (!db || !currentUserId) {
+                console.error("Database not ready.");
+                return;
+            }
 
-            days.forEach(day => {
+            const currentWeekDate = ALL_DATES_BY_DAY[currentDay]?.[currentWeekIndex];
+            if (!currentWeekDate) return;
+
+            const selectedProsForCurrentWeek = scheduleState[categoryForAssignment][dayForAssignment][className].weeklyAssignments[currentWeekDate].pros;
+
+            if (selectedProsForCurrentWeek.length === 0) {
+                alert("Please select at least one pro for this class in the current week before using 'Assign All Instances'.");
+                return;
+            }
+
+            let updatedScheduleState = { ...scheduleState };
+
+            // Iterate through all weeks for the specific class on the current day
+            ALL_DATES_BY_DAY[dayForAssignment].forEach(weekDate => {
+                const classOffering = SCHEDULE_CATEGORIES[categoryForAssignment][dayForAssignment].find(cls => cls.name === className);
+                const weekIndex = ALL_DATES_BY_DAY[dayForAssignment].indexOf(weekDate);
+
+                // Only update if the class is offered this specific week
+                if (classOffering && classOffering.weeklyCourts[weekIndex] !== null) {
+                    updatedScheduleState = {
+                        ...updatedScheduleState,
+                        [categoryForAssignment]: {
+                            ...updatedScheduleState[categoryForAssignment],
+                            [dayForAssignment]: {
+                                ...updatedScheduleState[categoryForAssignment][dayForAssignment],
+                                [className]: {
+                                    ...updatedScheduleState[categoryForAssignment][dayForAssignment][className],
+                                    weeklyAssignments: {
+                                        ...updatedScheduleState[categoryForAssignment][dayForAssignment][className].weeklyAssignments,
+                                        [weekDate]: {
+                                            ...updatedScheduleState[categoryForAssignment][dayForAssignment][className].weeklyAssignments[weekDate],
+                                            pros: [...selectedProsForCurrentWeek].sort(), // Assign the same pros
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    };
+
+                    // Now, for this specific weekDate, update availablePros for other classes on the same day
+                    SCHEDULE_CATEGORIES[categoryForAssignment][dayForAssignment].forEach(otherClassItem => {
+                        if (otherClassItem.name !== className) {
+                            const otherClassWeekState = updatedScheduleState[categoryForAssignment][dayForAssignment][otherClassItem.name]?.weeklyAssignments[weekDate];
+                            if (otherClassWeekState) {
+                                const otherClassTime = otherClassItem.time;
+                                const currentClassTime = classOffering.time;
+
+                                // If times overlap, remove assigned pros from other classes' available lists
+                                if (otherClassTime === currentClassTime) {
+                                    let updatedAvailablePros = otherClassWeekState.availablePros.filter(
+                                        pro => !selectedProsForCurrentWeek.includes(pro)
+                                    );
+                                    updatedScheduleState[categoryForAssignment][dayForAssignment][otherClassItem.name].weeklyAssignments[weekDate].availablePros = updatedAvailablePros.sort();
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Update local state and Firestore
+            scheduleState = updatedScheduleState;
+            renderSchedule(); // Re-render to show all changes
+
+            const appIdForFirestore = firebaseConfig.projectId;
+            const scheduleDocRef = doc(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/scheduleData`);
+            try {
+                await setDoc(scheduleDocRef, { schedule: scheduleState });
+                alert(`Assigned selected pros to all instances of "${className}" on ${dayForAssignment}s.`);
+            } catch (err) {
+                console.error("Failed to assign to all instances. Please try again.");
+                alert("Failed to assign to all instances. Please try again.");
+            }
+        };
+
+
+        const renderCategoryTabs = () => {
+            const categoryTabContainer = document.getElementById('category-tabs');
+            categoryTabContainer.innerHTML = '';
+            const categories = Object.keys(SCHEDULE_CATEGORIES);
+
+            categories.forEach(category => {
+                const isActive = category === currentCategory;
+                const buttonClass = isActive
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700';
+
+                const tabHtml = `
+                    <button
+                        class="px-6 py-2 rounded-t-lg font-bold transition-colors ${buttonClass}"
+                        data-category="${category}"
+                    >
+                        ${category}
+                    </button>
+                `;
+                categoryTabContainer.insertAdjacentHTML('beforeend', tabHtml);
+            });
+
+            document.querySelectorAll('#category-tabs button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    currentCategory = e.target.dataset.category;
+                    // Reset day and week when changing category
+                    currentDay = Object.keys(SCHEDULE_CATEGORIES[currentCategory])[0]; 
+                    currentWeekIndex = 0;
+                    renderCategoryTabs(); // Re-render category tabs to update active state
+                    renderDayTabs(); // Re-render day tabs for the new category
+                    renderSchedule();
+                });
+            });
+        };
+
+        const renderDayTabs = () => {
+            const dayTabContainer = document.getElementById('day-tabs');
+            dayTabContainer.innerHTML = '';
+            const daysInCurrentCategory = Object.keys(SCHEDULE_CATEGORIES[currentCategory]);
+
+            daysInCurrentCategory.forEach(day => {
                 const isActive = day === currentDay;
                 const buttonClass = isActive
                     ? 'bg-emerald-600 text-white'
@@ -370,13 +659,14 @@
                         ${day}
                     </button>
                 `;
-                tabContainer.insertAdjacentHTML('beforeend', tabHtml);
+                dayTabContainer.insertAdjacentHTML('beforeend', tabHtml);
             });
 
             document.querySelectorAll('#day-tabs button').forEach(button => {
                 button.addEventListener('click', (e) => {
                     currentDay = e.target.dataset.day;
-                    renderTabs();
+                    currentWeekIndex = 0; // Reset to first week when changing day
+                    renderDayTabs(); // Re-render day tabs to update active state
                     renderSchedule();
                 });
             });
@@ -384,6 +674,20 @@
 
         window.onload = async () => {
             document.getElementById('loading').style.display = 'none';
+
+            // Week navigation buttons
+            document.getElementById('prevWeekBtn').addEventListener('click', () => {
+                if (currentWeekIndex > 0) {
+                    currentWeekIndex--;
+                    renderSchedule();
+                }
+            });
+            document.getElementById('nextWeekBtn').addEventListener('click', () => {
+                if (currentWeekIndex < ALL_DATES_BY_DAY[currentDay].length - 1) {
+                    currentWeekIndex++;
+                    renderSchedule();
+                }
+            });
 
             try {
                 const firebaseApp = initializeApp(firebaseConfig);
@@ -412,7 +716,11 @@
                                 scheduleState = initializeScheduleData();
                                 setDoc(scheduleDocRef, { schedule: scheduleState }).catch(err => console.error("Failed to set initial schedule:", err));
                             }
-                            renderTabs();
+                            // Initialize with default category and day, then render
+                            currentCategory = Object.keys(SCHEDULE_CATEGORIES)[0];
+                            currentDay = Object.keys(SCHEDULE_CATEGORIES[currentCategory])[0];
+                            renderCategoryTabs();
+                            renderDayTabs();
                             renderSchedule();
                         }, (err) => {
                             console.error("Failed to fetch schedule:", err);

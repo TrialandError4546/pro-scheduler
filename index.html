@@ -190,6 +190,51 @@
             };
         }
 
+        // Assign a pro and save to database
+        async function assignPro(classInfo, proName) {
+            const updatedClass = { ...classInfo, pro: proName };
+            const docRef = doc(db, `artifacts/${appId}/public/data/classAssignments`, `${classInfo.court}-${classInfo.name}-${classInfo.time}`);
+            try {
+                await setDoc(docRef, updatedClass, { merge: true });
+                setMessage(`Successfully assigned ${proName} to class on court ${classInfo.court}.`, false);
+            } catch (error) {
+                console.error("Error saving assignment:", error);
+                setMessage("Failed to save assignment. Check the console.", true);
+            }
+        }
+        
+        // Find eligible pros for a given class
+        function findEligiblePros(classInfo) {
+            const classTime = parseTime(classInfo.time);
+            const classRating = findRatingByClass(classInfo.name) || classInfo.rating;
+
+            if (!classTime) return [];
+
+            const assignedProNames = processedScheduleData.map(c => c.pro).filter(Boolean);
+            const availablePros = proAvailability.filter(pro => {
+                if (assignedProNames.includes(pro.name)) {
+                    return false;
+                }
+                const availableSlot = pro.availability.find(slot => {
+                    if (slot.time.toLowerCase().includes('available')) return true;
+                    if (slot.time.toLowerCase().includes('off') || slot.time.toLowerCase().includes('not available')) return false;
+                    const slotTime = parseTime(slot.time);
+                    if (!slotTime) return false;
+                    return (classTime.start >= slotTime.start && classTime.end <= slotTime.end);
+                });
+                return availableSlot;
+            });
+            
+            const eligiblePros = availablePros.filter(pro => {
+                const hasRequiredRating = proRatings.find(proRating =>
+                    proRating.name === pro.name && proRating.ratings.includes(classRating)
+                );
+                return hasRequiredRating;
+            });
+
+            return eligiblePros.map(pro => pro.name);
+        }
+        
         // Function to update the DOM with the schedule
         function renderSchedule() {
             const scheduleBody = document.getElementById('schedule-body');
@@ -215,7 +260,18 @@
                 let proColor = assignedProName === 'No Pro Available' ? 'text-red-400' : 'text-green-400';
 
                 const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-700 transition-colors cursor-pointer';
+                row.className = 'hover:bg-gray-700 transition-colors';
+                
+                let proDropdownHtml = `<td class="py-4 px-4 whitespace-nowrap"><select class="w-full p-2 bg-gray-700 text-gray-200 rounded-lg" onchange="handleProAssignment(this, ${index})">`;
+                proDropdownHtml += `<option value="N/A">Unassigned</option>`;
+
+                const eligiblePros = findEligiblePros(item);
+                eligiblePros.forEach(proName => {
+                    const isSelected = proName === assignedProName;
+                    proDropdownHtml += `<option value="${proName}" ${isSelected ? 'selected' : ''}>${proName}</option>`;
+                });
+                proDropdownHtml += `</select></td>`;
+
                 row.innerHTML = `
                     <td class="py-4 px-4 whitespace-nowrap text-gray-300">${item.court}</td>
                     <td class="py-4 px-4 whitespace-nowrap text-gray-200">${item.name}</td>
@@ -225,13 +281,8 @@
                             ${currentRating || 'N/A'}
                         </span>
                     </td>
-                    <td class="py-4 px-4 whitespace-nowrap text-blue-300">
-                        <span class="${proColor}">
-                            ${assignedProName}
-                        </span>
-                    </td>
+                    ${proDropdownHtml}
                 `;
-                row.addEventListener('click', () => openProAssignmentModal(item, assignedProName));
                 scheduleBody.appendChild(row);
             });
         }
@@ -243,82 +294,22 @@
             messageElement.className = `mt-2 p-2 rounded-md ${isError ? 'bg-red-600' : 'bg-green-600'} text-white`;
         }
 
-        // Open modal to assign a pro
-        function openProAssignmentModal(classInfo, currentPro) {
-            const modal = document.getElementById('pro-assignment-modal');
-            const proList = document.getElementById('eligible-pro-list');
-            proList.innerHTML = ''; // Clear previous list
-            
-            const eligiblePros = findEligiblePros(classInfo);
-
-            if (eligiblePros.length === 0) {
-                proList.innerHTML = '<p class="text-gray-400">No eligible pros found for this class.</p>';
-            } else {
-                eligiblePros.forEach(proName => {
-                    const button = document.createElement('button');
-                    button.textContent = proName;
-                    button.className = `w-full text-left p-3 rounded-lg border border-gray-700 mb-2 transition-colors duration-200 ${
-                        proName === currentPro ? 'bg-green-600 text-white' : 'bg-gray-800 hover:bg-blue-600'
-                    }`;
-                    button.addEventListener('click', () => assignPro(classInfo, proName));
-                    proList.appendChild(button);
-                });
-            }
-
-            modal.classList.add('open');
-        }
-
-        // Close modal
-        function closeProAssignmentModal() {
-            document.getElementById('pro-assignment-modal').classList.remove('open');
-        }
-
-        // Assign a pro and save to database
-        async function assignPro(classInfo, proName) {
+        window.handleProAssignment = async function(selectElement, index) {
+            const proName = selectElement.value;
+            const classInfo = schedule[index];
             const updatedClass = { ...classInfo, pro: proName };
-            const docRef = doc(db, `artifacts/${appId}/public/data/classAssignments`, `${classInfo.court}-${classInfo.name}-${classInfo.time}`);
+            const docId = `${classInfo.court}-${classInfo.name}-${classInfo.time}`;
+
+            const docRef = doc(db, `artifacts/${appId}/public/data/classAssignments`, docId);
             try {
                 await setDoc(docRef, updatedClass, { merge: true });
                 setMessage(`Successfully assigned ${proName} to class on court ${classInfo.court}.`, false);
-                closeProAssignmentModal();
             } catch (error) {
                 console.error("Error saving assignment:", error);
                 setMessage("Failed to save assignment. Check the console.", true);
             }
-        }
-        
-        // Find eligible pros for a given class
-        function findEligiblePros(classInfo) {
-            const classTime = parseTime(classInfo.time);
-            const classRating = findRatingByClass(classInfo.name) || classInfo.rating;
+        };
 
-            if (!classTime) return [];
-
-            const assignedProNames = new Set(processedScheduleData.map(c => c.pro).filter(Boolean));
-            const availablePros = proAvailability.filter(pro => {
-                if (assignedProNames.has(pro.name)) {
-                    return false;
-                }
-                const availableSlot = pro.availability.find(slot => {
-                    if (slot.time.toLowerCase().includes('available')) return true;
-                    if (slot.time.toLowerCase().includes('off') || slot.time.toLowerCase().includes('not available')) return false;
-                    const slotTime = parseTime(slot.time);
-                    return (classTime.start >= slotTime.start && classTime.end <= slotTime.end);
-                });
-                return availableSlot;
-            });
-            
-            const eligiblePros = availablePros.filter(pro => {
-                const hasRequiredRating = proRatings.find(proRating =>
-                    proRating.name === pro.name && proRating.ratings.includes(classRating)
-                );
-                return hasRequiredRating;
-            });
-
-            return eligiblePros.map(pro => pro.name);
-        }
-
-        
         // Load data from Firestore on app load
         window.onload = function() {
             // Hardcoded default pro ratings
@@ -396,9 +387,6 @@
                     await signInAnonymously(auth);
                 }
             });
-            
-            // Set up modal close button
-            document.getElementById('close-modal-btn').addEventListener('click', closeProAssignmentModal);
         };
     </script>
 </head>
@@ -436,19 +424,6 @@
                 </table>
             </div>
         </section>
-    </div>
-
-    <!-- Modal for Pro Assignment -->
-    <div id="pro-assignment-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75" style="display: none;">
-        <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full shadow-lg border border-blue-400">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-2xl font-bold text-blue-400">Assign a Pro</h3>
-                <button id="close-modal-btn" class="text-gray-400 hover:text-white">&times;</button>
-            </div>
-            <div id="eligible-pro-list">
-                <!-- Pro buttons will be populated here -->
-            </div>
-        </div>
     </div>
 </body>
 </html>

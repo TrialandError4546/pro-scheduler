@@ -23,9 +23,8 @@
             measurementId: "G-CXP60P9M3Q"
         };
         
-        // Canvas environment variables (placeholders for your GitHub hosting)
-        const appId = 'default-app-id'; 
-        const initialAuthToken = '';
+        // Use projectId as appId for a more reliable identifier outside of Canvas
+        const appId = firebaseConfig.projectId;
 
         // Initialize Firebase services
         const app = initializeApp(firebaseConfig);

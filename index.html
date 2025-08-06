@@ -339,7 +339,7 @@
                 { "name": "Lindsay Baum", "availability": [{ "time": "Not Available" }] },
                 { "name": "Justyna Wereszka", "availability": [{ "time": "Available" }] }
             ], null, 2);
-
+            
             // Set up Firebase auth and Firestore listener
             onAuthStateChanged(auth, async (user) => {
                 const loadingMessage = document.getElementById('loading-message');
@@ -376,6 +376,8 @@
             
             // Set up modal close button
             document.getElementById('close-modal-btn').addEventListener('click', closeProAssignmentModal);
+            // Hide the modal by default
+            closeProAssignmentModal();
         };
     </script>
 </head>

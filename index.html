@@ -111,10 +111,10 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, getDocs, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Data parsed from the uploaded PDF
+        // --- PRO STAFF AVAILABILITY DATA ---
         const PRO_AVAILABILITY_DATA = [
             { name: 'John Warren', email: 'john.warren@usta.com', monday: '9a-8:30p', tuesday: '9a-8:30p', wednesday: '9a-8:30p', thursday: '9a-8:30p', friday: '9a-8:30p', saturday: 'Not Available', sunday: 'Not Available' },
             { name: 'Rod Bailey', email: 'bailey@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: '', saturday: 'Available', sunday: 'Available' },
@@ -153,7 +153,7 @@
             { name: 'Rohan D\'Souza', email: 'rohan.dsouza@usta.com', monday: '7a-9am, 12pm-10pm', tuesday: '', wednesday: '7a-9am, 12pm-10pm', thursday: '7am-3pm', friday: '7a-9am, 12-5pm', saturday: 'N/A', sunday: 'N/A' },
         ];
 
-        // Define all dates for each day
+        // --- ALL DATES BY DAY ---
         const ALL_DATES_BY_DAY = {
             Monday: ['9/15', '9/22', '9/29', '10/6', '10/13', '10/20', '10/27', '11/3', '11/10', '11/17', '11/24', '12/1', '12/8', '12/15', '12/22', '12/29', '1/5'],
             Tuesday: ['9/16', '9/23', '9/30', '10/7', '10/14', '10/21', '10/28', '11/4', '11/11', '11/18', '11/25', '12/2', '12/9', '12/16', '12/23', '12/30', '1/6'],
@@ -164,6 +164,7 @@
             Sunday: ['9/21', '9/28', '10/5', '10/12', '10/19', '10/26', '11/2', '11/9', '11/16', '11/23', '11/30', '12/7', '12/14', '12/21', '12/28', '1/4', '1/11']
         };
 
+        // --- SCHEDULE CATEGORIES (Daytime, Evenings, Weekends) ---
         const SCHEDULE_CATEGORIES = {
             Daytime: {
                 Monday: [
@@ -312,7 +313,7 @@
             }
         };
 
-        // Your Firebase Configuration (UPDATED)
+        // --- FIREBASE CONFIGURATION ---
         const firebaseConfig = {
             apiKey: "AIzaSyAuIqhrh4KbvRyB07UB-NvDz5dK-XRFAW0",
             authDomain: "ntc-pro-scheduler.firebaseapp.com",
@@ -326,18 +327,17 @@
         let db;
         let auth;
         let currentUserId;
-        let scheduleState = {}; // Will hold only the current week's data
-        let currentCategory = 'Daytime'; // New: Default to Daytime
+        let scheduleState = {}; // Will hold only the current week's data for rendering
+        let currentCategory = 'Daytime'; // Default to Daytime
         let currentDay = 'Monday'; // Default to Monday
         let currentWeekIndex = 0; // Index for current week in ALL_DATES_BY_DAY
 
-        // Helper function to parse time strings into minutes from midnight for comparison
+        // --- HELPER FUNCTIONS ---
         const parseTime = (timeStr) => {
             const normalizedTime = timeStr.replace(/ /g, '').toLowerCase();
             
-            // Handle specific custom time notations (e.g., "Barm" for 8am)
-            if (normalizedTime.startsWith('barm')) {
-                return 8 * 60; // 8:00 AM
+            if (normalizedTime.startsWith('barm')) { // Handle 'Barm' as 8 AM
+                return 8 * 60; 
             }
 
             const match = normalizedTime.match(/(\d+)(?::(\d+))?([ap]?m?)?/);
@@ -368,7 +368,7 @@
                 return true;
             }
 
-            const unavailableKeywords = ['off', 'n/a', 'nia', 'tua', 'unavailable', 'inarbr', 'nva', 'nica', 'bua', 'now', 'n', '', 'citt', 'nanew']; // Added 'citt' and 'nanew'
+            const unavailableKeywords = ['off', 'n/a', 'nia', 'tua', 'unavailable', 'inarbr', 'nva', 'nica', 'bua', 'now', 'n', '', 'citt', 'nanew'];
             if (unavailableKeywords.some(keyword => proAvailability.toLowerCase().includes(keyword))) {
                 return false;
             }
@@ -404,24 +404,29 @@
             return false;
         };
 
-        // This function now *creates and saves* individual weekly documents
+        // --- FIREBASE INTERACTION FUNCTIONS ---
+
+        // This function creates and saves individual weekly schedule documents to Firestore
         const initializeAndSaveAllWeeklySchedules = async () => {
             const appIdForFirestore = firebaseConfig.projectId;
-            // Reference to the 'weeks' subcollection under schedules/{appId}
+            // Corrected path: 'schedules' collection -> {appId} document -> 'weeks' subcollection
             const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); 
             
+            let batchPromises = []; // Use promises to manage multiple setDoc operations
+
             for (const category of Object.keys(SCHEDULE_CATEGORIES)) {
                 for (const day of Object.keys(SCHEDULE_CATEGORIES[category])) {
                     for (const classItem of SCHEDULE_CATEGORIES[category][day]) {
                         for (const [index, date] of ALL_DATES_BY_DAY[day].entries()) {
-                            const formattedDate = date.replace(/\//g, '-'); // e.g., 9-15
-                            // Create a unique document ID for each class instance in a specific week
-                            const docId = `${formattedDate}-${day}-${classItem.name.replace(/[^a-zA-Z0-9]/g, '')}-${classItem.time.replace(/[^a-zA-Z0-9]/g, '')}`; 
-
-                            // Only initialize if the class is offered this week (court is not null)
+                            // Only create document if class is offered this week (court is not null)
                             if (classItem.weeklyCourts[index] !== null) {
+                                const formattedDate = date.replace(/\//g, '-'); 
+                                // Create a unique document ID for each class instance: DATE-DAY-CLASSNAME-TIME
+                                const cleanClassName = classItem.name.replace(/[^a-zA-Z0-9]/g, '');
+                                const cleanTime = classItem.time.replace(/[^a-zA-Z0-9]/g, '');
+                                const docId = `${formattedDate}-${day}-${cleanClassName}-${cleanTime}`; 
+
                                 const dayAvailabilityKey = day.toLowerCase();
-                                
                                 const availablePros = PRO_AVAILABILITY_DATA
                                     .filter(pro => isProAvailableForClass(pro[dayAvailabilityKey], classItem.time))
                                     .map(pro => pro.name);
@@ -434,23 +439,23 @@
                                     date: date,
                                     court: classItem.weeklyCourts[index],
                                     pros: [], // Initially empty array for assigned pros
-                                    availablePros: availablePros.sort() // Available pros for this specific class instance
+                                    availablePros: availablePros.sort() 
                                 };
-                                try {
-                                    // Set each weekly class instance as a separate document
-                                    await setDoc(doc(weeksCollectionRef, docId), weeklyClassData);
-                                } catch (e) {
-                                    console.error(`Error setting document for ${docId}:`, e);
-                                }
+                                
+                                // Add setDoc operation to batchPromises
+                                batchPromises.push(setDoc(doc(weeksCollectionRef, docId), weeklyClassData)
+                                    .catch(e => console.error(`Error setting document for ${docId}:`, e))
+                                );
                             }
                         }
                     }
                 }
             }
+            await Promise.all(batchPromises); // Wait for all initial writes to complete
             console.log("All initial weekly schedule documents created in Firestore.");
         };
 
-        // This function now fetches only the data for the current week and updates scheduleState
+        // This function fetches data for the current week and updates the local scheduleState
         const fetchAndRenderCurrentWeek = async () => {
             const appIdForFirestore = firebaseConfig.projectId;
             const currentWeekDate = ALL_DATES_BY_DAY[currentDay]?.[currentWeekIndex];
@@ -461,35 +466,33 @@
                 return;
             }
 
-            const formattedWeekDate = currentWeekDate.replace(/\//g, '-'); // e.g., 9-15
-            
             // Reference to the 'weeks' subcollection
             const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); 
             
             // Query for documents that match the current week's date and day
-            // Note: Firestore queries are limited. We're fetching all and filtering in-memory for simplicity.
-            // For very large datasets, you'd add more specific queries (e.g., where('date', '==', currentWeekDate))
-            // but this would require composite indexes in Firestore.
+            // For efficient querying, we would ideally filter by date and day in Firestore.
+            // However, Firestore composite indexes would be required for complex queries (e.g., date AND day).
+            // For now, we fetch all and filter in-memory.
             const q = query(weeksCollectionRef); 
 
             try {
                 const querySnapshot = await getDocs(q);
-                let fetchedWeeklyData = {}; // Temporary object to reconstruct the full schedule structure
+                let fetchedAllWeeklyData = {}; // Temp object to hold all fetched data, structured by category/day/class/date
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    // Reconstruct the scheduleState from individual documents
-                    if (!fetchedWeeklyData[data.category]) fetchedWeeklyData[data.category] = {};
-                    if (!fetchedWeeklyData[data.category][data.day]) fetchedWeeklyData[data.category][data.day] = {};
-                    if (!fetchedWeeklyData[data.category][data.day][data.className]) {
-                        fetchedWeeklyData[data.category][data.day][data.className] = { weeklyAssignments: {} };
+                    // Reconstruct the full scheduleState structure from individual documents
+                    if (!fetchedAllWeeklyData[data.category]) fetchedAllWeeklyData[data.category] = {};
+                    if (!fetchedAllWeeklyData[data.category][data.day]) fetchedAllWeeklyData[data.category][data.day] = {};
+                    if (!fetchedAllWeeklyData[data.category][data.day][data.className]) {
+                        fetchedAllWeeklyData[data.category][data.day][data.className] = { weeklyAssignments: {} };
                     }
-                    fetchedWeeklyData[data.category][data.day][data.className].weeklyAssignments[data.date] = {
+                    fetchedAllWeeklyData[data.category][data.day][data.className].weeklyAssignments[data.date] = {
                         pros: data.pros || [],
                         availablePros: data.availablePros || [],
                         court: data.court || null
                     };
                 });
-                scheduleState = fetchedWeeklyData; // Update the global scheduleState
+                scheduleState = fetchedAllWeeklyData; // Update the global scheduleState with ALL data
                 console.log("scheduleState after fetching all weekly docs:", scheduleState);
                 renderSchedule(); // Render the UI with the fetched data
             } catch (err) {
@@ -498,6 +501,7 @@
             }
         };
 
+        // --- UI RENDERING FUNCTIONS ---
 
         const renderSchedule = () => {
             const container = document.getElementById('schedule-container');
@@ -507,7 +511,7 @@
             document.getElementById('currentWeekDisplay').innerText = currentWeekDate ? `Week of ${currentWeekDate}` : 'No Week Selected';
 
             console.log("--- renderSchedule called ---");
-            console.log("scheduleState:", scheduleState); // This should now have the full structure
+            console.log("scheduleState:", scheduleState); 
             console.log("currentCategory:", currentCategory);
             console.log("currentDay:", currentDay);
             console.log("currentWeekIndex:", currentWeekIndex);
@@ -681,7 +685,7 @@
             }
 
             const appIdForFirestore = firebaseConfig.projectId;
-            const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); // Updated path
+            const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); 
 
             let promises = [];
 
@@ -715,6 +719,7 @@
             }
         };
 
+        // --- TAB RENDERING FUNCTIONS ---
 
         const renderCategoryTabs = () => {
             const categoryTabContainer = document.getElementById('category-tabs');
@@ -744,9 +749,9 @@
                     // Reset day and week when changing category
                     currentDay = Object.keys(SCHEDULE_CATEGORIES[currentCategory])[0]; 
                     currentWeekIndex = 0;
-                    renderCategoryTabs(); // Re-render category tabs to update active state
-                    renderDayTabs(); // Re-render day tabs for the new category
-                    fetchAndRenderCurrentWeek(); // Fetch and render for the new category/day
+                    renderCategoryTabs(); 
+                    renderDayTabs(); 
+                    fetchAndRenderCurrentWeek(); 
                 });
             });
         };
@@ -777,49 +782,35 @@
                 button.addEventListener('click', (e) => {
                     currentDay = e.target.dataset.day;
                     currentWeekIndex = 0; // Reset to first week when changing day
-                    renderDayTabs(); // Re-render day tabs to update active state
-                    fetchAndRenderCurrentWeek(); // Fetch and render for the new day
+                    renderDayTabs(); 
+                    fetchAndRenderCurrentWeek(); 
                 });
             });
         };
 
-        // Function to get the current day of the week as a string (e.g., "Monday")
+        // --- TODAY'S SCHEDULE LOGIC ---
+
         const getCurrentDayOfWeek = () => {
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             const date = new Date();
             return days[date.getDay()];
         };
 
-        // Function to format date for Firestore document ID
-        const formatDateForFirestore = (dateString) => {
-            const parts = dateString.split('/');
-            if (parts.length === 2) {
-                // Assuming MM/DD format, add a default year (e.g., 2024 for 9/15)
-                // This is a simplification; for real apps, better date handling is needed.
-                return `2024-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-            }
-            return dateString.replace(/\//g, '-'); // Fallback for other formats
-        };
-
-        // Function to generate and display today's schedule email content
         const showTodayScheduleEmail = async () => {
             const today = getCurrentDayOfWeek();
             const emailContentArea = document.getElementById('emailContentArea');
-            emailContentArea.innerHTML = ''; // Clear previous content
+            emailContentArea.innerHTML = ''; 
 
-            // Find the current week's date for today
             let todayWeekDate = null;
             let todayCategory = null;
             let todayDayClasses = null;
 
-            // Iterate through all categories and days to find today's classes
+            // Find today's classes and matching week date
+            const currentYear = new Date().getFullYear();
             for (const categoryKey of Object.keys(SCHEDULE_CATEGORIES)) {
                 if (SCHEDULE_CATEGORIES[categoryKey][today]) {
                     todayCategory = categoryKey;
                     todayDayClasses = SCHEDULE_CATEGORIES[categoryKey][today];
-                    // Find the current week index for today's date
-                    const todayDate = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }); // e.g., "9/15"
-                    const currentYear = new Date().getFullYear(); // Get current year
                     
                     const allDatesForToday = ALL_DATES_BY_DAY[today];
                     const matchingWeekIndex = allDatesForToday.findIndex(date => {
@@ -832,12 +823,13 @@
 
                     if (matchingWeekIndex !== -1) {
                          todayWeekDate = allDatesForToday[matchingWeekIndex];
-                         currentWeekIndex = matchingWeekIndex; // Set currentWeekIndex to today's week
-                         currentDay = today; // Set currentDay to today
-                         currentCategory = todayCategory; // Set currentCategory to today's category
-                         renderCategoryTabs(); // Update active category tab
-                         renderDayTabs(); // Update active day tab
-                         break; // Found today's schedule
+                         // Update global state to show today's schedule in main view
+                         currentWeekIndex = matchingWeekIndex; 
+                         currentDay = today; 
+                         currentCategory = todayCategory; 
+                         renderCategoryTabs(); 
+                         renderDayTabs(); 
+                         break; 
                     }
                 }
             }
@@ -848,33 +840,30 @@
                 return;
             }
 
-            // Fetch the specific document for today's week
+            // Re-fetch all data to ensure scheduleState is up-to-date for email generation
             const appIdForFirestore = firebaseConfig.projectId;
-            const formattedTodayWeekDate = todayWeekDate.replace(/\//g, '-');
-            
-            const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); // Updated path
-            const q = query(weeksCollectionRef); // Fetch all documents in the 'weeks' collection
+            const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); 
+            const q = query(weeksCollectionRef); 
 
             try {
                 const querySnapshot = await getDocs(q);
-                let fetchedWeeklyData = {};
+                let fetchedAllWeeklyData = {};
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    // Reconstruct the scheduleState for the current view from individual documents
-                    if (!fetchedWeeklyData[data.category]) fetchedWeeklyData[data.category] = {};
-                    if (!fetchedWeeklyData[data.category][data.day]) fetchedWeeklyData[data.category][data.day] = {};
-                    if (!fetchedWeeklyData[data.category][data.day][data.className]) {
-                        fetchedWeeklyData[data.category][data.day][data.className] = { weeklyAssignments: {} };
+                    if (!fetchedAllWeeklyData[data.category]) fetchedAllWeeklyData[data.category] = {};
+                    if (!fetchedAllWeeklyData[data.category][data.day]) fetchedAllWeeklyData[data.category][data.day] = {};
+                    if (!fetchedAllWeeklyData[data.category][data.day][data.className]) {
+                        fetchedAllWeeklyData[data.category][data.day][data.className] = { weeklyAssignments: {} };
                     }
-                    fetchedWeeklyData[data.category][data.day][data.className].weeklyAssignments[data.date] = {
+                    fetchedAllWeeklyData[data.category][data.day][data.className].weeklyAssignments[data.date] = {
                         pros: data.pros || [],
                         availablePros: data.availablePros || [],
                         court: data.court || null
                     };
                 });
-                scheduleState = fetchedWeeklyData; // Update the global scheduleState
+                scheduleState = fetchedAllWeeklyData; // Update global scheduleState
 
-                const assignedProsToday = {}; // { proName: [{className, time, court}, ...] }
+                const assignedProsToday = {}; 
 
                 todayDayClasses.forEach(classItem => {
                     const classWeekState = scheduleState[todayCategory]?.[classItem.name]?.weeklyAssignments?.[todayWeekDate];
@@ -942,7 +931,7 @@
                     });
                 });
 
-                document.getElementById('emailModal').style.display = 'flex'; // Show modal
+                document.getElementById('emailModal').style.display = 'flex'; 
 
             } catch (err) {
                 console.error("Error generating today's schedule:", err);
@@ -951,6 +940,7 @@
             }
         };
 
+        // --- INITIALIZATION AND EVENT LISTENERS ---
 
         window.onload = async () => {
             document.getElementById('loading').style.display = 'none';
@@ -959,13 +949,13 @@
             document.getElementById('prevWeekBtn').addEventListener('click', () => {
                 if (currentWeekIndex > 0) {
                     currentWeekIndex--;
-                    fetchAndRenderCurrentWeek(); // Fetch and render for the new week
+                    fetchAndRenderCurrentWeek(); 
                 }
             });
             document.getElementById('nextWeekBtn').addEventListener('click', () => {
                 if (ALL_DATES_BY_DAY[currentDay] && currentWeekIndex < ALL_DATES_BY_DAY[currentDay].length - 1) {
                     currentWeekIndex++;
-                    fetchAndRenderCurrentWeek(); // Fetch and render for the new week
+                    fetchAndRenderCurrentWeek(); 
                 }
             });
 
@@ -994,22 +984,21 @@
 
                 document.getElementById('userId').innerText = 'Authenticating...';
 
-                // We will use a direct fetch for the initial check to avoid onSnapshot's continuous triggering
-                // during the initial data population.
-                const appIdForFirestore = firebaseConfig.projectId;
-                const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); 
-
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         currentUserId = user.uid;
                         document.getElementById('userId').innerText = user.uid;
                     } else {
+                        // Attempt anonymous sign-in if no user is found
                         await signInAnonymously(auth);
                         currentUserId = auth.currentUser.uid;
                         document.getElementById('userId').innerText = currentUserId;
                     }
 
                     if (db && currentUserId) {
+                        const appIdForFirestore = firebaseConfig.projectId;
+                        const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); 
+
                         // Check if the 'weeks' collection is empty. If so, initialize all documents.
                         const weeksSnapshot = await getDocs(query(weeksCollectionRef));
                         if (weeksSnapshot.empty) {
@@ -1024,7 +1013,7 @@
                         currentDay = Object.keys(SCHEDULE_CATEGORIES[currentCategory])[0];
                         renderCategoryTabs();
                         renderDayTabs();
-                        await fetchAndRenderCurrentWeek(); // Initial fetch and render
+                        await fetchAndRenderCurrentWeek(); 
                     }
                 });
             } catch (e) {

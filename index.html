@@ -3,728 +3,411 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Category, Multi-Week Pro Staff Scheduler</title>
+    <title>Tennis Pro Scheduler</title>
+    <!-- Tailwind CSS for a clean, modern look -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-
-        /* Modal specific styles */
-        .modal {
-            display: none; /* Hidden by default */
-            position: fixed; /* Stay in place */
-            z-index: 1000; /* Sit on top */
-            left: 0;
-            top: 0;
-            width: 100%; /* Full width */
-            height: 100%; /* Full height */
-            overflow: auto; /* Enable scroll if needed */
-            background-color: rgba(0,0,0,0.7); /* Black w/ opacity */
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        .modal-content {
-            background-color: #1f2937; /* Gray-800 */
-            margin: auto;
-            padding: 20px;
-            border-radius: 0.75rem; /* rounded-xl */
-            width: 90%;
-            max-width: 800px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            color: #e5e7eb; /* text-gray-200 */
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .close-button {
-            color: #9ca3af; /* gray-400 */
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-        }
-        .close-button:hover,
-        .close-button:focus {
-            color: #f3f4f6; /* gray-100 */
-            text-decoration: none;
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body class="bg-gray-900 text-white min-h-screen p-6 md:p-12">
-    <div class="max-w-4xl mx-auto">
-        <h1 class="text-4xl font-bold mb-4 text-emerald-400">Multi-Category, Multi-Week Pro Staff Scheduler</h1>
-        <p class="text-gray-400 mb-8">
-            This is a live, collaborative scheduler. Assignments will be saved in real-time.
-            <br/>
-            <span class="font-semibold text-white">Your User ID: <span id="userId">Loading...</span></span>
-        </p>
-
-        <!-- Category Tabs (Daytime, Evenings, Weekends) -->
-        <div id="category-tabs" class="flex flex-wrap gap-2 mb-4 border-b-2 border-gray-600">
-            <!-- Category tabs will be injected by JavaScript -->
-        </div>
-
-        <!-- Day Tabs (Monday, Tuesday, etc.) -->
-        <div id="day-tabs" class="flex flex-wrap gap-2 mb-8 border-b-2 border-gray-700">
-            <!-- Day tabs will be injected by JavaScript -->
-        </div>
-
-        <!-- Week Navigation -->
-        <div class="flex justify-between items-center mb-8">
-            <button id="prevWeekBtn" class="px-4 py-2 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-600 transition-colors duration-300">
-                &larr; Previous Week
-            </button>
-            <span id="currentWeekDisplay" class="text-xl font-bold text-emerald-300">Loading Week...</span>
-            <button id="nextWeekBtn" class="px-4 py-2 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-600 transition-colors duration-300">
-                Next Week &rarr;
-            </button>
-        </div>
-
-        <!-- Today's Schedule Button -->
-        <div class="mb-8">
-            <button id="showTodayBtn" class="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300">
-                Show Today's Schedule
-            </button>
-        </div>
-
-        <div id="schedule-container" class="space-y-6">
-            <!-- Class cards will be injected here by JavaScript -->
-            <div id="loading" class="text-center text-lg text-gray-300">Loading schedule...</div>
-        </div>
-    </div>
-
-    <!-- Email Content Modal -->
-    <div id="emailModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2 class="text-3xl font-bold mb-4 text-emerald-400">Today's Schedule Summary</h2>
-            <p class="text-gray-400 mb-6">
-                Below is a summary of today's assigned classes. You can copy the email content for each pro.
-                <br>
-                <span class="font-bold text-red-400">Note: This application does NOT send emails directly.</span>
-            </p>
-            <div id="emailContentArea" class="space-y-6">
-                <!-- Email content for each pro will be injected here -->
-            </div>
-        </div>
-    </div>
-
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- PRO STAFF AVAILABILITY DATA ---
-        const PRO_AVAILABILITY_DATA = [
-            { name: 'John Warren', email: 'john.warren@usta.com', monday: '9a-8:30p', tuesday: '9a-8:30p', wednesday: '9a-8:30p', thursday: '9a-8:30p', friday: '9a-8:30p', saturday: 'Not Available', sunday: 'Not Available' },
-            { name: 'Rod Bailey', email: 'bailey@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: '', saturday: 'Available', sunday: 'Available' },
-            { name: 'Lindsay Baum', email: 'lindsay.baum@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available', saturday: 'Available', sunday: 'Available' },
-            { name: 'Justyna Wereszka', email: 'Justyna.wereszka@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available NEW', friday: 'Available NEW', saturday: 'Not Available NEW', sunday: 'Not Available NEW' },
-            { name: 'David Parra-Newton', email: 'david.parra-newton@usta.com', monday: '9am-7pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-5:30pm NEW', saturday: 'N/A', sunday: 'N/A NEW' },
-            { name: 'Leo Correa', email: 'leo.correa@usta.com', monday: '9am-8:30 pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30 pm NEW', thursday: '9am-8:30 pm NEW', friday: '9am-6:30pm NEW', saturday: 'OFF NEW', sunday: 'OFF NEW' },
-            { name: 'Nouri El-Hajjar', email: 'hajjar@usta.com', monday: '9am-8:30 pm', tuesday: '9-8:30 pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-4pm NEW', saturday: 'Not Available NEW', sunday: '-N/A' },
-            { name: 'Danny Ahn', email: 'danny.ahn@lusta.com', monday: '9am-8:30pm', tuesday: '9am-8:30pm NEW', wednesday: '9am-8:30pm NEW', thursday: '9am-8:30pm NEW', friday: '9am-4pm NEW', saturday: '', sunday: '(Summer NEW' },
-            { name: 'Osas Akinniranye', email: 'osas.akinniranye@usta.com', monday: 'Available 9am', tuesday: 'Available 9am', wednesday: 'Available 9am', thursday: 'Available 9am', friday: 'Available 9am', saturday: 'Unavailable NEW', sunday: '' },
-            { name: 'Stever Forte', email: 'Steven.forte@usta.com', monday: '9-8:30pm', tuesday: '9-8:30pm NEW', wednesday: '9-8:30pm NEW', thursday: '9-8:30pm NEW', friday: '', saturday: '9am-6:30pm', sunday: '' },
-            { name: 'Ziryab Ahmed', email: 'ziryab.ahmed@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available', saturday: '', sunday: '' },
-            { name: 'Karla Noboa', email: 'karla.noboa@usta.com', monday: 'New 10am-8:30pm', tuesday: 'New 10am-8:30pm', wednesday: 'Available 10am-8:30prn', thursday: 'Available 10arn 8:30pm', friday: '9am-9:30pm', saturday: 'NEW OFF', sunday: 'NEW-OFF' },
-            { name: 'Zack Ray', email: 'dedric.ray@usta.com', monday: 'Off', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available', saturday: '9AM-6:30 PM NEW', sunday: 'Off' },
-            { name: 'Omer Khalifa', email: 'omer.khalifa@usta.com', monday: 'Available (New!)', tuesday: 'Available (New)', wednesday: 'Available (New)', thursday: 'Available (New)', friday: 'Available (New)', saturday: 'Off(new)**', sunday: 'Off (New)' },
-            { name: 'Gustavo Alcayaga', email: 'gustavo.alcayaga@usta.com', monday: 'Summer 2025 9-4 pm', tuesday: 'Summer 2025 9-4 pm', wednesday: 'Summer 20259-4 pm', thursday: 'Summer 2025 9-4 pm', friday: 'Summer 2025 9-4 pm', saturday: 'N/A', sunday: 'N/A' },
-            { name: 'Valeria Torres', email: 'valeria.torres@lusta.com', monday: 'NArbr', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: '8 am-6pm NEW', saturday: 'N/A', sunday: 'N/A' },
-            { name: 'Alex Hagiu', email: 'alexander.hagiu@usta.com', monday: 'Available', tuesday: 'N/A', wednesday: 'Available', thursday: 'N/A', friday: 'NA', saturday: 'Available', sunday: 'Available' },
-            { name: 'Peter Wang', email: 'peter.wang@usta.com', monday: 'N/A', tuesday: '9am-8:30pm', wednesday: 'N/A', thursday: '9am 8:30pm', friday: '2pm-8:30pm', saturday: 'N/A', sunday: 'NA' },
-            { name: 'Farhad Roshashanie', email: 'farhad.roshanale@usta.com', monday: 'INIA', tuesday: 'NXAC', wednesday: 'NIA', thursday: 'NOW', friday: 'N/A', saturday: 'NIA', sunday: 'NA' },
-            { name: 'Jinny Welch', email: 'jinny.welch@usta.com', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'NUA', friday: 'N/A NEW', saturday: 'N/A NEW', sunday: 'N/A' },
-            { name: 'Viola Avdyli', email: 'viola.avdylimusta.com', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: 'N/A', saturday: '9am-4:30pm', sunday: '9am-4:30' },
-            { name: 'Frederick Abunku', email: 'frederick.abunku@usta.com', monday: '6pm-10pm', tuesday: '6pm-10pm', wednesday: '6pm-10pm', thursday: 'BUA', friday: 'N/A', saturday: 'NIA', sunday: 'N/A' },
-            { name: 'Daniel Cox', email: 'daniel.cox@usta.com', monday: 'N/A', tuesday: 'N/A', wednesday: 'N/A', thursday: 'NVA', friday: 'NA', saturday: 'NA NEW', sunday: 'NA NEW' },
-            { name: 'Shaquille Hamilton', email: 'shaquille.hamilton@usta.com', monday: '8:30am-3pm', tuesday: '8:30am-3pm', wednesday: '8:30am-3pm', thursday: '8:30am-3pm', friday: 'N', saturday: '9am-2pm', sunday: 'N' },
-            { name: 'Valery Cardona', email: 'valery.calderon@usta.com', monday: '9-4', tuesday: '9-4 pm (NEW)', wednesday: '9-4 pm (NEW]', thursday: '9-4 pm (NEW)', friday: '9-4 pm (NEW)', saturday: 'NWA INEW', sunday: 'NA' },
-            { name: 'Mellanie Benitez', email: 'mellanie.benitez@usta.com', monday: '9-4 pm (NEW)', tuesday: '9-4 pm (NEW)', wednesday: '9-4 pm (NEW]', thursday: '9-4 pm (NEW)', friday: '9-4 pm. (NEW)', saturday: '9am-12pm', sunday: 'N/A' },
-            { name: 'Lenny Brosnan', email: 'leonard.brosnan@usta.com', monday: 'INA', tuesday: 'N/A', wednesday: 'N/A', thursday: 'N/A', friday: 'TUA', saturday: 'N/A', sunday: 'N/A' },
-            { name: 'Will McGarvey', email: 'william.mcgarvey@usta.com', monday: 'Barm-3pm NEW', tuesday: '8am-3pm NEW', wednesday: 'Barm-3pm NEW', thursday: '8am-3pm NEW', friday: 'Bam-3pm NEW', saturday: '', sunday: 'Barm-3pm NEW' },
-            { name: 'Robert Childers', email: 'robert.childers@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available (NEW)', saturday: 'Available (NEW)', sunday: 'Available' },
-            { name: 'Felix Liew', email: 'felix.liewusta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available', saturday: 'Available (New]', sunday: 'Citt (New)' },
-            { name: 'Petra Frinculescu', email: 'petra.frinculescu@usta.com', monday: '1-10 pm NEW', tuesday: '9-4pm NEW', wednesday: '1-10pm NEW', thursday: '9-4pm NEW', friday: '1-10pm NEW', saturday: 'NANEW', sunday: 'N/A' },
-            { name: 'Bilal Afzal', email: 'bilal.afzal@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'NICA', saturday: '9a-4:30p', sunday: '9a-4:30p' },
-            { name: 'Orlando Olmedo', email: 'alvaro.olmedo@usta.com', monday: 'Available', tuesday: 'Available', wednesday: 'Available', thursday: 'Available', friday: 'Available', saturday: 'Available', sunday: 'Available' },
-            { name: 'Sophia Rodriguez', email: 'sophia.rodriguez2@usta.com', monday: 'Available NEW', tuesday: 'Available NEW', wednesday: 'Available NEW', thursday: 'Available NEW', friday: 'Available NEW', saturday: 'N/A', sunday: 'N/A' },
-            { name: 'Rohan D\'Souza', email: 'rohan.dsouza@usta.com', monday: '7a-9am, 12pm-10pm', tuesday: '', wednesday: '7a-9am, 12pm-10pm', thursday: '7am-3pm', friday: '7a-9am, 12-5pm', saturday: 'N/A', sunday: 'N/A' },
+        // Your Firebase project configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBMA3OjbUnX2c786WxFtDdWs7jzTfDFUqE",
+            authDomain: "master-ntc-scheduler.firebaseapp.com",
+            projectId: "master-ntc-scheduler",
+            storageBucket: "master-ntc-scheduler.firebasestorage.app",
+            messagingSenderId: "756847124761",
+            appId: "1:756847124761:web:4d77e91da2cf31b385a588",
+            measurementId: "G-CXP60P9M3Q"
+        };
+        
+        // Canvas environment variables (placeholders for your GitHub hosting)
+        const appId = 'default-app-id'; 
+        const initialAuthToken = '';
+
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        let userId = null;
+        let processedScheduleData = [];
+
+        // Hardcoded schedule data from the PDF for Monday
+        const schedule = [
+            { court: 1, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
+            { court: 1, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
+            { court: 1, name: 'FTF', time: '4:00P-6:00P', rating: 'None', pro: null },
+            { court: 1, name: 'Intro To Tennis', time: '6:00P-7:30P', rating: 'None', pro: null },
+            { court: 1, name: 'Night Lights', time: '7:30P-9:00P', rating: 'Gold', pro: null },
+            { court: 2, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
+            { court: 2, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
+            { court: 2, name: 'FTF', time: '4:00P-6:00P', rating: 'None', pro: null },
+            { court: 2, name: 'Drill & Play', time: '6:00P-8:00P', rating: 'Bronze', pro: null },
+            { court: 2, name: 'Zone', time: '8:00P-9:30P', rating: 'None', pro: null },
+            { court: 3, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
+            { court: 3, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
+            { court: 3, name: 'Elite', time: '4:00P-6:00P', rating: 'None', pro: null },
+            { court: 3, name: 'Drill & Play', time: '6:00P-8:00P', rating: 'Bronze', pro: null },
+            { court: 3, name: 'Zone', time: '8:00P-9:30P', rating: 'None', pro: null },
+            { court: 4, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
+            { court: 4, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
+            { court: 4, name: 'Elite', time: '4:00P-6:00P', rating: 'None', pro: null },
+            { court: 4, name: 'JD Stars', time: '6:30P-8:00P', rating: 'None', pro: null },
+            { court: 4, name: 'NTC Silver', time: '8:00P-9:30P', rating: 'Silver', pro: null },
+            { court: 5, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
+            { court: 5, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
+            { court: 5, name: 'JR Stroke Series', time: '5:00P-6:00P', rating: 'None', pro: null },
+            { court: 5, name: 'Green Champs', time: '6:00P-8:00P', rating: 'None', pro: null },
+            { court: 5, name: 'NTC Bronze', time: '8:00P-9:30P', rating: 'Bronze', pro: null },
+            { court: 6, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
+            { court: 6, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
+            { court: 6, name: 'JR Stroke Series', time: '5:00P-6:00P', rating: 'None', pro: null },
+            { court: 6, name: 'Green Champs', time: '6:00P-8:00P', rating: 'None', pro: null },
+            { court: 6, name: 'NTC Bronze', time: '8:00P-9:30P', rating: 'Bronze', pro: null },
+            { court: 7, name: 'Novice 102', time: '9:00A-10:30A', rating: 'None', pro: null },
+            { court: 7, name: 'Lead Pro', time: '10:30A-12:00P', rating: 'Bronze', pro: null },
+            { court: 7, name: 'Advanced Zone', time: '12:00P-1:30P', rating: 'None', pro: null },
+            { court: 7, name: 'Red Aces', time: '4:00P-5:30P', rating: 'None', pro: null },
+            { court: 7, name: 'Orange Champs', time: '5:30P-7:00P', rating: 'None', pro: null },
+            { court: 7, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'None', pro: null },
+            { court: 7, name: 'Intro to Tennis', time: '8:30P-10:00P', rating: 'None', pro: null },
+            { court: 8, name: 'NTC Rally', time: '9:00A-10:30A', rating: 'None', pro: null },
+            { court: 8, name: 'Lead Pro', time: '10:30A-12:00P', rating: 'Bronze', pro: null },
+            { court: 8, name: 'Orange Aces', time: '4:00P-5:30P', rating: 'None', pro: null },
+            { court: 8, name: 'Green Aces', time: '5:30P-7:00P', rating: 'None', pro: null },
+            { court: 8, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'None', pro: null },
+            { court: 8, name: 'Stroke Series', time: '8:30P-9:30P', rating: 'None', pro: null },
+            { court: 9, name: 'NTC Rally', time: '9:00A-10:30A', rating: 'None', pro: null },
+            { court: 9, name: 'Eval', time: '5:00P-5:30P', rating: 'None', pro: null },
+            { court: 9, name: 'Jr expansion', time: '5:30P-7:00P', rating: 'None', pro: null },
+            { court: 9, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'None', pro: null },
+            { court: 9, name: 'Stroke Series', time: '8:30P-9:30P', rating: 'None', pro: null },
+            { court: 10, name: 'Drill & Play', time: '10:00A-11:30A', rating: 'Silver', pro: null },
+            { court: 10, name: 'Green Stars', time: '5:00P-7:00P', rating: 'None', pro: null },
+            { court: 10, name: 'Novice 102', time: '7:00P-8:30P', rating: 'None', pro: null },
+            { court: 11, name: 'Drill & Play', time: '10:00A-11:30A', rating: 'Silver', pro: null },
+            { court: 11, name: 'Novice 102', time: '7:00P-8:30P', rating: 'None', pro: null },
+            { court: 12, name: 'NTC Gold', time: '7:00P-8:30P', rating: 'Gold', pro: null },
         ];
 
-        // --- ALL DATES BY DAY ---
-        const ALL_DATES_BY_DAY = {
-            Monday: ['9/15', '9/22', '9/29', '10/6', '10/13', '10/20', '10/27', '11/3', '11/10', '11/17', '11/24', '12/1', '12/8', '12/15', '12/22', '12/29', '1/5'],
-            Tuesday: ['9/16', '9/23', '9/30', '10/7', '10/14', '10/21', '10/28', '11/4', '11/11', '11/18', '11/25', '12/2', '12/9', '12/16', '12/23', '12/30', '1/6'],
-            Wednesday: ['9/17', '9/24', '10/1', '10/8', '10/15', '10/22', '10/29', '11/5', '11/12', '11/19', '11/26', '12/3', '12/10', '12/17', '12/24', '12/31', '1/7'],
-            Thursday: ['9/18', '9/25', '10/2', '10/9', '10/16', '10/23', '10/30', '11/6', '11/13', '11/20', '11/27', '12/4', '12/11', '12/18', '12/25', '1/1', '1/8'],
-            Friday: ['9/19', '9/26', '10/3', '10/10', '10/17', '10/24', '10/31', '11/7', '11/14', '11/21', '11/28', '12/5', '12/12', '12/19', '12/26', '1/2', '1/9'],
-            Saturday: ['9/20', '9/27', '10/4', '10/11', '10/18', '10/25', '11/1', '11/8', '11/15', '11/22', '11/29', '12/6', '12/13', '12/20', '12/27', '1/3', '1/10'],
-            Sunday: ['9/21', '9/28', '10/5', '10/12', '10/19', '10/26', '11/2', '11/9', '11/16', '11/23', '11/30', '12/7', '12/14', '12/21', '12/28', '1/4', '1/11']
-        };
+        // Hardcoded default pro ratings
+        const proRatingsDefault = JSON.stringify([
+            { "name": "Nouri", "ratings": ["Red", "Orange", "Green", "Intro/Novice"] },
+            { "name": "John", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "JD Aces (10-14)", "JD Stars", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "Wheelchair"] },
+            { "name": "Justyna", "ratings": ["Red", "Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Wheelchair"] },
+            { "name": "Osas", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
+            { "name": "David", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
+            { "name": "Karla", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+            { "name": "Danny", "ratings": ["Orange", "JD Aces Plus (14-18)", "JD Champs", "JD Aces (10-14)", "FTF", "High Performance (FTF +, Elite)", "All FT", "PACES**"] },
+            { "name": "Zack", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+            { "name": "Steven", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+            { "name": "Gus", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "PACES**"] },
+            { "name": "Alex H. (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "High Performance (FTF +, Elite)", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Omer", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Anders", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Wheelchair", "Seniors"] },
+            { "name": "Peter", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "PACES**", "Wheelchair", "Seniors"] },
+            { "name": "Farhad", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Jinny", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+            { "name": "Viola (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze"] },
+            { "name": "Daniel C.", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Shaquille", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Will (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Robert", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Silver/Gold"] },
+            { "name": "Felix", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold", "All FT"] },
+            { "name": "Petra (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF"] },
+            { "name": "Rohan", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Orlando", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold", "All FT"] }
+        ], null, 2);
 
-        // Helper to fill weeklyCourts arrays with repeating last non-null value
-        const fillWeeklyCourts = (courtsArray, totalWeeks) => {
-            const filledArray = [...courtsArray];
-            let lastValidCourt = null;
-            for (let i = 0; i < filledArray.length; i++) {
-                if (filledArray[i] !== null) {
-                    lastValidCourt = filledArray[i];
-                } else if (lastValidCourt !== null) {
-                    filledArray[i] = lastValidCourt;
-                }
-            }
-            // If there are still nulls at the beginning, fill them from the first valid forward
-            for (let i = filledArray.length - 1; i >= 0; i--) {
-                if (filledArray[i] !== null) {
-                    lastValidCourt = filledArray[i];
-                } else if (lastValidCourt !== null) {
-                    filledArray[i] = lastValidCourt;
-                }
-            }
-            // Ensure array has totalWeeks length
-            while (filledArray.length < totalWeeks) {
-                filledArray.push(lastValidCourt || 'N/A'); // Fallback if no valid court found
-            }
-            return filledArray.slice(0, totalWeeks);
-        };
+        // Hardcoded default pro availability from the CSV
+        const proAvailabilityDefault = JSON.stringify([
+            { "name": "David Parra-Newton", "availability": [{ "time": "4:00P-9:30P" }] },
+            { "name": "Leo Correa", "availability": [{ "time": "11:30A-3:30P" }] },
+            { "name": "Shaquille Hamilton", "availability": [{ "time": "8:30A-3:00P" }] },
+            { "name": "Valery Cardona", "availability": [{ "time": "9:00A-4:00P" }] },
+            { "name": "Mellanie Benitez", "availability": [{ "time": "9:00A-4:00P" }] },
+            { "name": "John Warren", "availability": [{ "time": "OFF NEW" }] },
+            { "name": "Rod Bailey", "availability": [{ "time": "Available" }] },
+            { "name": "Lindsay Baum", "availability": [{ "time": "Not Available" }] },
+            { "name": "Justyna Wereszka", "availability": [{ "time": "Available" }] }
+        ], null, 2);
 
-        // --- SCHEDULE CATEGORIES (Daytime, Evenings, Weekends) ---
-        const SCHEDULE_CATEGORIES = {
-            Daytime: {
-                Monday: [
-                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8-9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Weekday Drill & Play (Silver)', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 10,11', 'Court 10,11', 'Court 10,11', 'Court 10,11', 'Court 10,11', 'Court 10,11', 'Court 10,11', 'Court 10,11', 'Court 10,11', 'Court 10,11', 'Court 10-11', 'Court 10,11', 'Court 10,11', 'Court 10,11', 'Court 10,11', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7-8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Weekday Advanced ZONE', time: '12P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court-7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                ],
-                Tuesday: [
-                    { name: 'NTC Breakfast Club (Bronze)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8,9', 'Court 7,8,9', 'Court 1,2,3', 'Court 1,2,3', 'Court 1,2,3', 'Court 1,2,3', 'Court 7,8,9', 'Court 1,2,3', 'Court 1,2,3', 'Court 1,2,3', 'Court 1,2,3', 'Court 1,2,3', 'Court 1,2,3', 'Court 1,2,3', 'Court 1,2,3', 'Court 1,2,3', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Weekday Stroke Series', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7,8,9', 'Court 7,8,9', 'Court 2,3,4', 'Court 2,3,4', 'Court 2,3,4', 'Court 2,3,4', 'Court 7,8,9', 'Court 2,3,4', 'Court 2,3,4', 'Court 2,3,4', 'Court 2,3,4', 'Court 2,3,4', 'Court 2,3,4', 'Court 2,3,4', 'Court 2,3,4', 'Court 2,3,4', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 5', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 7,8,9', 'Court 7,8,9', 'Court 2-5', 'Court 2-5', 'Court 2-5', 'Court 2-5', 'Court 7-10', 'Court 2-5', 'Court 2-5', 'Court 2-5', 'Court 2-5', 'Court 2-5', 'Court 2-5', 'Court 2-5', 'Court 2-5', 'Court 2-5', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 18', 'Court 18', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 6', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 5', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Weekday NTC Gold', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 15, 14', 'Court 15, 14', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 11-12', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '11:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                ],
-                Wednesday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Breakfast Club (Rally)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court?', 'Court 10', 'Court-7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: fillWeeklyCourts(['Court &', 'Court 11', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 11', 'Court 8', 'Court 6', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 6', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Silver', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 11', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 11', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Daylights (Bronze)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                ],
-                Thursday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'NTC Breakfast Club (Silver)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Silver)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Evaluations', time: '9 to 10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court &', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court B', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                ],
-                Friday: [
-                    { name: 'Director\'s Cut (Silver)', time: '9A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, 'Court-7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 1,2', 'Court 1,2', 'Court 1,2', 'Court 1,2', null, 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Rally', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', 'Court 7-9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                ]
-            },
-            Evenings: {
-                Monday: [
-                    { name: 'Intro To Tennis', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Intro To Tennis', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Novice 102', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null, 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Rally', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Bronze', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Silver', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 13', 'Court 13', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Gold', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Stroke Series: Volley', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Zone', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 14,15', 'Court 14,15', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Night Lights (Gold)', time: '7:30P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Drill & Play (Bronze)', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 15,14', 'Court 15,14', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                ],
-                Tuesday: [
-                    { name: 'Intro to Tennis 101', time: '6:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Intro to Tennis 101', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '6PM', weeklyCourts: fillWeeklyCourts(['Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 15,16', 'Court 15,16', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Bronze', time: '8:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Silver', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Silver)', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Gold)', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Silver', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Gold', time: '8:00 PM', weeklyCourts: fillWeeklyCourts(['Court 14', 'Court 14', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '6:30 PM', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                ],
-                Wednesday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Breakfast Club (Rally)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court?', 'Court 10', 'Court-7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: fillWeeklyCourts(['Court &', 'Court 11', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 11', 'Court 8', 'Court 6', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 6', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Silver', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 11', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 11', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Daylights (Bronze)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                ],
-                Thursday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'NTC Breakfast Club (Silver)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Silver)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Evaluations', time: '9 to 10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court &', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court B', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                ],
-                Friday: [
-                    { name: 'Director\'s Cut (Silver)', time: '9A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, 'Court-7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 1,2', 'Court 1,2', 'Court 1,2', 'Court 1,2', null, 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Rally', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', 'Court 7-9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                ]
-            },
-            Evenings: {
-                Monday: [
-                    { name: 'Intro To Tennis', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Intro To Tennis', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Novice 102', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null, 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Rally', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Bronze', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Silver', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 13', 'Court 13', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Gold', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Stroke Series: Volley', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Zone', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 14,15', 'Court 14,15', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Night Lights (Gold)', time: '7:30P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Drill & Play (Bronze)', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 15,14', 'Court 15,14', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                ],
-                Tuesday: [
-                    { name: 'Intro to Tennis 101', time: '6:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Intro to Tennis 101', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '6PM', weeklyCourts: fillWeeklyCourts(['Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 15,16', 'Court 15,16', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Bronze', time: '8:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Silver', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Silver)', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Gold)', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Silver', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Gold', time: '8:00 PM', weeklyCourts: fillWeeklyCourts(['Court 14', 'Court 14', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '6:30 PM', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                ],
-                Wednesday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Breakfast Club (Rally)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court?', 'Court 10', 'Court-7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: fillWeeklyCourts(['Court &', 'Court 11', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 11', 'Court 8', 'Court 6', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 6', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Silver', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 11', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 11', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Daylights (Bronze)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                ],
-                Thursday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'NTC Breakfast Club (Silver)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Silver)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Evaluations', time: '9 to 10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court &', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court B', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                ],
-                Friday: [
-                    { name: 'Director\'s Cut (Silver)', time: '9A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, 'Court-7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 1,2', 'Court 1,2', 'Court 1,2', 'Court 1,2', null, 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Rally', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', 'Court 7-9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                ]
-            },
-            Evenings: {
-                Monday: [
-                    { name: 'Intro To Tennis', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Intro To Tennis', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Novice 102', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null, 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Rally', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Bronze', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Silver', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 13', 'Court 13', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Gold', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Stroke Series: Volley', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Zone', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 14,15', 'Court 14,15', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Night Lights (Gold)', time: '7:30P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Drill & Play (Bronze)', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 15,14', 'Court 15,14', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                ],
-                Tuesday: [
-                    { name: 'Intro to Tennis 101', time: '6:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Intro to Tennis 101', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '6PM', weeklyCourts: fillWeeklyCourts(['Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 15,16', 'Court 15,16', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Bronze', time: '8:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Silver', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Silver)', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Gold)', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Silver', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Gold', time: '8:00 PM', weeklyCourts: fillWeeklyCourts(['Court 14', 'Court 14', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '6:30 PM', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                ],
-                Wednesday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Breakfast Club (Rally)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court?', 'Court 10', 'Court-7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: fillWeeklyCourts(['Court &', 'Court 11', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 11', 'Court 8', 'Court 6', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 6', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Silver', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 11', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 11', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Daylights (Bronze)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                ],
-                Thursday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'NTC Breakfast Club (Silver)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Silver)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Evaluations', time: '9 to 10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court &', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court B', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                ],
-                Friday: [
-                    { name: 'Director\'s Cut (Silver)', time: '9A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, 'Court-7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 1,2', 'Court 1,2', 'Court 1,2', 'Court 1,2', null, 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Rally', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', 'Court 7-9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                ]
-            },
-            Evenings: {
-                Monday: [
-                    { name: 'Intro To Tennis', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Intro To Tennis', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Novice 102', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null, 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Rally', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Bronze', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Silver', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 13', 'Court 13', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Gold', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Stroke Series: Volley', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Zone', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 14,15', 'Court 14,15', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Night Lights (Gold)', time: '7:30P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Drill & Play (Bronze)', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 15,14', 'Court 15,14', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                ],
-                Tuesday: [
-                    { name: 'Intro to Tennis 101', time: '6:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Intro to Tennis 101', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '6PM', weeklyCourts: fillWeeklyCourts(['Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 15,16', 'Court 15,16', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Bronze', time: '8:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Silver', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Silver)', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Gold)', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Silver', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Gold', time: '8:00 PM', weeklyCourts: fillWeeklyCourts(['Court 14', 'Court 14', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '6:30 PM', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                ],
-                Wednesday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Breakfast Club (Rally)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court?', 'Court 10', 'Court-7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: fillWeeklyCourts(['Court &', 'Court 11', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 11', 'Court 8', 'Court 6', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 6', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Silver', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 11', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 11', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Daylights (Bronze)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                ],
-                Thursday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'NTC Breakfast Club (Silver)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Silver)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Evaluations', time: '9 to 10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court &', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court B', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                ],
-                Friday: [
-                    { name: 'Director\'s Cut (Silver)', time: '9A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, 'Court-7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 1,2', 'Court 1,2', 'Court 1,2', 'Court 1,2', null, 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Rally', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', 'Court 7-9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                ]
-            },
-            Evenings: {
-                Monday: [
-                    { name: 'Intro To Tennis', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Intro To Tennis', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Novice 102', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null, 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Rally', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Bronze', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Silver', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 13', 'Court 13', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Gold', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Stroke Series: Volley', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Zone', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 14,15', 'Court 14,15', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Night Lights (Gold)', time: '7:30P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Drill & Play (Bronze)', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 15,14', 'Court 15,14', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                ],
-                Tuesday: [
-                    { name: 'Intro to Tennis 101', time: '6:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Intro to Tennis 101', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '6PM', weeklyCourts: fillWeeklyCourts(['Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 15,16', 'Court 15,16', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Bronze', time: '8:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Silver', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Silver)', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Gold)', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Silver', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Gold', time: '8:00 PM', weeklyCourts: fillWeeklyCourts(['Court 14', 'Court 14', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '6:30 PM', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                ],
-                Wednesday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Breakfast Club (Rally)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court?', 'Court 10', 'Court-7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: fillWeeklyCourts(['Court &', 'Court 11', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 11', 'Court 8', 'Court 6', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 6', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Silver', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 11', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 11', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Daylights (Bronze)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                ],
-                Thursday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'NTC Breakfast Club (Silver)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Silver)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Evaluations', time: '9 to 10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court &', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court B', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                ],
-                Friday: [
-                    { name: 'Director\'s Cut (Silver)', time: '9A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, 'Court-7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 1,2', 'Court 1,2', 'Court 1,2', 'Court 1,2', null, 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Rally', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', 'Court 7-9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                ]
-            },
-            Evenings: {
-                Monday: [
-                    { name: 'Intro To Tennis', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Intro To Tennis', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Novice 102', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null, 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Rally', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Bronze', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Silver', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 13', 'Court 13', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Gold', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Stroke Series: Volley', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Zone', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 14,15', 'Court 14,15', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Night Lights (Gold)', time: '7:30P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Drill & Play (Bronze)', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 15,14', 'Court 15,14', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                ],
-                Tuesday: [
-                    { name: 'Intro to Tennis 101', time: '6:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Intro to Tennis 101', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '6PM', weeklyCourts: fillWeeklyCourts(['Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 15,16', 'Court 15,16', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Bronze', time: '8:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Silver', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Silver)', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Gold)', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Silver', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Gold', time: '8:00 PM', weeklyCourts: fillWeeklyCourts(['Court 14', 'Court 14', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '6:30 PM', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                ],
-                Wednesday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Breakfast Club (Rally)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court?', 'Court 10', 'Court-7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: fillWeeklyCourts(['Court &', 'Court 11', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 11', 'Court 8', 'Court 6', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 6', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Silver', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 11', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 11', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Daylights (Bronze)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                ],
-                Thursday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'NTC Breakfast Club (Silver)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Silver)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Evaluations', time: '9 to 10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court &', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court B', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                ],
-                Friday: [
-                    { name: 'Director\'s Cut (Silver)', time: '9A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, 'Court-7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 1,2', 'Court 1,2', 'Court 1,2', 'Court 1,2', null, 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Rally', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', 'Court 7-9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                ]
-            },
-            Evenings: {
-                Monday: [
-                    { name: 'Intro To Tennis', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Intro To Tennis', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Novice 102', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null, 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Rally', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Bronze', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Silver', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 13', 'Court 13', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Gold', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Stroke Series: Volley', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Zone', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 14,15', 'Court 14,15', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Night Lights (Gold)', time: '7:30P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Drill & Play (Bronze)', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 15,14', 'Court 15,14', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                ],
-                Tuesday: [
-                    { name: 'Intro to Tennis 101', time: '6:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Intro to Tennis 101', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '6PM', weeklyCourts: fillWeeklyCourts(['Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 15,16', 'Court 15,16', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Bronze', time: '8:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Silver', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Silver)', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Gold)', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Silver', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Gold', time: '8:00 PM', weeklyCourts: fillWeeklyCourts(['Court 14', 'Court 14', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '6:30 PM', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                ],
-                Wednesday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Breakfast Club (Rally)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court?', 'Court 10', 'Court-7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: fillWeeklyCourts(['Court &', 'Court 11', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 11', 'Court 8', 'Court 6', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 6', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Silver', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 11', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 11', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Daylights (Bronze)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                ],
-                Thursday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'NTC Breakfast Club (Silver)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Silver)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Evaluations', time: '9 to 10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court &', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court B', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                ],
-                Friday: [
-                    { name: 'Director\'s Cut (Silver)', time: '9A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, 'Court-7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 1,2', 'Court 1,2', 'Court 1,2', 'Court 1,2', null, 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Rally', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', 'Court 7-9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                ]
-            },
-            Evenings: {
-                Monday: [
-                    { name: 'Intro To Tennis', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Intro To Tennis', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Novice 102', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null, 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Rally', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Bronze', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Silver', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 13', 'Court 13', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Gold', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Stroke Series: Volley', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Zone', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 14,15', 'Court 14,15', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Night Lights (Gold)', time: '7:30P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Drill & Play (Bronze)', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 15,14', 'Court 15,14', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                ],
-                Tuesday: [
-                    { name: 'Intro to Tennis 101', time: '6:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Intro to Tennis 101', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '6PM', weeklyCourts: fillWeeklyCourts(['Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 15,16', 'Court 15,16', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Bronze', time: '8:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Silver', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Silver)', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Night Lights (Gold)', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', 'Court 2', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Silver', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Drill & Play Gold', time: '8:00 PM', weeklyCourts: fillWeeklyCourts(['Court 14', 'Court 14', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '6:30 PM', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                ],
-                Wednesday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6.', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Breakfast Club (Rally)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court?', 'Court 10', 'Court-7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Novice 102', time: '9A', weeklyCourts: fillWeeklyCourts(['Court &', 'Court 11', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 11', 'Court 8', 'Court 6', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 6', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Rally', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday NTC Silver', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 10', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 11', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 11', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                    { name: 'NTC Daylights (Bronze)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 12', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 12', 'Court 9', 'Court', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court', null], ALL_DATES_BY_DAY.Wednesday.length) },
-                ],
-                Thursday: [
-                    { name: 'Round Robin', time: '10A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-8', 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Round Robin', time: '11:30A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 1-6', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', 'Court 1-6', 'Court 1-6-', 'Court 1-6', null, 'Court 1-6', 'Court 1-6', 'Court 1-6', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'NTC Breakfast Club (Silver)', time: '7:30A', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', 'Court 7.8', 'Court 7.8', 'Court 7,8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Bronze)', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Lead Pro (Silver)', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday Advanced Zone', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court B', 'Court 8', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Weekday NTC Daylights (Rally)', time: '12P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                    { name: 'Evaluations', time: '9 to 10:30A', weeklyCourts: fillWeeklyCourts(['Court 8', 'Court &', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court 8', 'Court 8', 'Court B', 'Court B', 'Court 8', 'Court 8', 'Court B', null, null, null, null], ALL_DATES_BY_DAY.Thursday.length) },
-                ],
-                Friday: [
-                    { name: 'Director\'s Cut (Silver)', time: '9A', weeklyCourts: fillWeeklyCourts([null, null, 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, 'Court-7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', 'Court 7-8', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Intro To Tennis', time: '9A', weeklyCourts: fillWeeklyCourts(['Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', 'Court 9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday Novice 102', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 1,2', 'Court 1,2', 'Court 1,2', 'Court 1,2', null, 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', 'Court 1,2', 'Court 1.2', 'Court 1.2', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Bronze', time: '10A', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', 'Court 3', null, null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                    { name: 'Weekday NTC Rally', time: '10:30A', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-6', 'Court 7-9', 'Court 7-9', null, null, null], ALL_DATES_BY_DAY.Friday.length) },
-                ]
-            },
-            Evenings: {
-                Monday: [
-                    { name: 'Intro To Tennis', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Intro To Tennis', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', 'Court 7', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Novice 102', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null, 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', 'Court 10-11', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Rally', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null, 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', 'Court 7-9', null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Bronze', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', 'Court 5,6', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Silver', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 13', 'Court 13', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', 'Court 4', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'NTC Gold', time: '7P', weeklyCourts: fillWeeklyCourts(['Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', 'Court 12', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Stroke Series: Volley', time: '8:30P', weeklyCourts: fillWeeklyCourts(['Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Zone', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 14,15', 'Court 14,15', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Night Lights (Gold)', time: '7:30P', weeklyCourts: fillWeeklyCourts(['Court 16', 'Court 16', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                    { name: 'Drill & Play (Bronze)', time: '6P', weeklyCourts: fillWeeklyCourts(['Court 15,14', 'Court 15,14', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', 'Court 2,3', null, null], ALL_DATES_BY_DAY.Monday.length) },
-                ],
-                Tuesday: [
-                    { name: 'Intro to Tennis 101', time: '6:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Intro to Tennis 101', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '6PM', weeklyCourts: fillWeeklyCourts(['Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', 'Court 11', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Rally', time: '8P', weeklyCourts: fillWeeklyCourts(['Court 15,16', 'Court 15,16', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', 'Court 4-6, 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Bronze', time: '8:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', 'Court 1', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'NTC Silver', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', 'Court 10', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'Stroke SERVE', time: '7:00 PM', weeklyCourts: fillWeeklyCourts(['Court 7,8', 'Court 7,8', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', 'Court 8,9', null], ALL_DATES_BY_DAY.Tuesday.length) },
-                    { name: 'ZONE', time: '7:30 PM', weeklyCourts: fillWeeklyCourts(['Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 11,12', 'Court 1
+        // Helper to parse time strings
+        function parseTime(timeStr) {
+            const [start, end] = timeStr.split('-').map(s => s.trim());
+            const startMatch = start.match(/(\d+):?(\d+)?(a|p|am|pm)/i);
+            const endMatch = end.match(/(\d+):?(\d+)?(a|p|am|pm)/i);
+
+            if (!startMatch || !endMatch) {
+                console.error("Failed to parse time string:", timeStr);
+                return null;
+            }
+
+            let startHour = parseInt(startMatch[1]);
+            let startMinutes = startMatch[2] ? parseInt(startMatch[2]) : 0;
+            let startPeriod = startMatch[3] ? startMatch[3].toLowerCase() : '';
+
+            let endHour = parseInt(endMatch[1]);
+            let endMinutes = endMatch[2] ? parseInt(endMatch[2]) : 0;
+            let endPeriod = endMatch[3] ? endMatch[3].toLowerCase() : '';
+            
+            // Handle am/pm conversions
+            if (startPeriod.includes('p') && startHour < 12) startHour += 12;
+            if (startPeriod.includes('a') && startHour === 12) startHour = 0;
+            if (endPeriod.includes('p') && endHour < 12) endHour += 12;
+            if (endPeriod.includes('a') && endHour === 12) endHour = 0;
+
+            return {
+                start: startHour + startMinutes / 60,
+                end: endHour + endMinutes / 60
+            };
+        }
+
+        // Function to update the DOM with the schedule
+        function renderSchedule() {
+            const scheduleBody = document.getElementById('schedule-body');
+            scheduleBody.innerHTML = ''; // Clear existing rows
+
+            schedule.forEach((item, index) => {
+                const assigned = processedScheduleData.find(assignment => 
+                    assignment.court === item.court && assignment.name === item.name && assignment.time === item.time
+                );
+                const assignedProName = assigned ? assigned.pro : 'N/A';
+
+                let ratingColor = '';
+                if (item.rating === 'Gold') ratingColor = 'bg-yellow-500 text-gray-900';
+                else if (item.rating === 'Silver') ratingColor = 'bg-gray-400 text-gray-900';
+                else if (item.rating === 'Bronze') ratingColor = 'bg-orange-400 text-gray-900';
+                else ratingColor = 'bg-gray-500 text-gray-100';
+
+                let proColor = assignedProName === 'No Pro Available' ? 'text-red-400' : 'text-green-400';
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-700 transition-colors';
+                row.innerHTML = `
+                    <td class="py-4 px-4 whitespace-nowrap text-gray-300">${item.court}</td>
+                    <td class="py-4 px-4 whitespace-nowrap text-gray-200">${item.name}</td>
+                    <td class="py-4 px-4 whitespace-nowrap text-gray-300">${item.time}</td>
+                    <td class="py-4 px-4 whitespace-nowrap">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${ratingColor}">
+                            ${item.rating || 'N/A'}
+                        </span>
+                    </td>
+                    <td class="py-4 px-4 whitespace-nowrap text-blue-300">
+                        <span class="${proColor}">
+                            ${assignedProName}
+                        </span>
+                    </td>
+                `;
+                scheduleBody.appendChild(row);
+            });
+        }
+        
+        // Save data to Firestore (to a public collection)
+        async function saveAssignment(assignment) {
+            if (!db || !userId) {
+                setMessage("Please wait for the database to be ready.");
+                return;
+            }
+            const docRef = doc(db, `artifacts/${appId}/public/data/classAssignments`, `${assignment.court}-${assignment.name}-${assignment.time}`);
+            try {
+                await setDoc(docRef, assignment, { merge: true });
+                setMessage("Assignment saved successfully!");
+            } catch (error) {
+                console.error("Error saving assignment:", error);
+                setMessage("Failed to save assignment. Check the console.");
+            }
+        }
+
+        // Main processing logic
+        async function handleProcessData() {
+            const proRatingsInput = document.getElementById('pro-ratings-input').value;
+            const proAvailabilityInput = document.getElementById('pro-availability-input').value;
+            let messageElement = document.getElementById('message');
+            messageElement.textContent = '';
+
+            try {
+                // Parse pro ratings and availability from user input
+                const proRatings = JSON.parse(proRatingsInput);
+                const proAvailability = JSON.parse(proAvailabilityInput);
+                localStorage.setItem('proRatingsInput', proRatingsInput);
+                localStorage.setItem('proAvailabilityInput', proAvailabilityInput);
+
+                // Create a temporary schedule to work with
+                const newProcessedSchedule = schedule.map(classInfo => ({ ...classInfo }));
+                
+                const assignedPros = new Set();
+
+                for (const classInfo of newProcessedSchedule) {
+                    const classTime = parseTime(classInfo.time);
+                    if (!classTime) {
+                        classInfo.pro = 'Error: Invalid time';
+                        continue;
+                    }
+                    const ratingRequired = classInfo.rating;
+
+                    const availablePros = proAvailability.filter(pro => {
+                        if (assignedPros.has(pro.name)) {
+                            return false;
+                        }
+                        
+                        const availableSlot = pro.availability.find(slot => {
+                            if (slot.time.toLowerCase().includes('available')) {
+                                return true;
+                            }
+                            if (slot.time.toLowerCase().includes('off') || slot.time.toLowerCase().includes('not available')) {
+                                return false;
+                            }
+
+                            const slotTime = parseTime(slot.time);
+                            if (!slotTime) return false;
+                            return (classTime.start >= slotTime.start && classTime.end <= slotTime.end);
+                        });
+
+                        const hasRequiredRating = proRatings.find(proRating =>
+                            proRating.name === pro.name && proRating.ratings.includes(ratingRequired)
+                        );
+
+                        return availableSlot && hasRequiredRating;
+                    });
+
+                    if (availablePros.length > 0) {
+                        const assignedPro = availablePros[0].name;
+                        classInfo.pro = assignedPro;
+                        assignedPros.add(assignedPro);
+                    } else {
+                        classInfo.pro = 'No Pro Available';
+                    }
+                    await saveAssignment(classInfo);
+                }
+                processedScheduleData = newProcessedSchedule;
+                renderSchedule();
+            } catch (error) {
+                console.error('Error processing data:', error);
+                messageElement.textContent = 'Failed to process data. Please ensure your JSON inputs are correctly formatted.';
+                messageElement.className = 'mt-2 p-2 rounded-md bg-red-600 text-white';
+            }
+        }
+
+        // Load data from Firestore on app load
+        window.onload = function() {
+            // Check if there's saved data in localStorage and pre-fill text areas
+            const savedRatings = localStorage.getItem('proRatingsInput');
+            const savedAvailability = localStorage.getItem('proAvailabilityInput');
+            if (savedRatings) {
+                document.getElementById('pro-ratings-input').value = savedRatings;
+            } else {
+                document.getElementById('pro-ratings-input').value = proRatingsDefault;
+            }
+            if (savedAvailability) {
+                document.getElementById('pro-availability-input').value = savedAvailability;
+            } else {
+                document.getElementById('pro-availability-input').value = proAvailabilityDefault;
+            }
+            
+            // Set up Firebase auth and Firestore listener
+            onAuthStateChanged(auth, async (user) => {
+                const loadingMessage = document.getElementById('loading-message');
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('user-id').textContent = userId;
+                    const publicCollectionPath = `artifacts/${appId}/public/data/classAssignments`;
+                    const q = collection(db, publicCollectionPath);
+                    onSnapshot(q, (querySnapshot) => {
+                        const assignedClasses = [];
+                        querySnapshot.forEach((doc) => {
+                            assignedClasses.push(doc.data());
+                        });
+                        processedScheduleData = assignedClasses;
+                        renderSchedule();
+                        loadingMessage.style.display = 'none';
+                    }, (error) => {
+                        console.error("Error fetching documents:", error);
+                        loadingMessage.textContent = 'Failed to load public data. Check console.';
+                    });
+                } else {
+                    await signInAnonymously(auth);
+                    loadingMessage.style.display = 'none';
+                }
+            });
+
+            // Set up button click event
+            document.getElementById('process-button').addEventListener('click', handleProcessData);
+        };
+    </script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans p-6 md:p-12">
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 md:mb-12 text-center">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-blue-400 mb-2">Tennis Pro Scheduler</h1>
+            <p class="text-gray-400">Manage your class schedule and assign pros based on availability and skill.</p>
+        </header>
+
+        <div class="mb-8 text-center text-sm md:text-base">
+            <p id="loading-message" class="text-blue-300">Loading...</p>
+            <p class="text-gray-400 hidden" id="user-id-container">
+                <span class="font-semibold text-blue-300">Your User ID:</span> <span id="user-id"></span>
+            </p>
+            <p id="message" class="mt-2"></p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            <div>
+                <h2 class="text-2xl font-bold mb-4 text-blue-400">Pro Ratings</h2>
+                <p class="text-gray-400 mb-2">
+                    Paste the content from your pro ratings slides here as a JSON array.
+                </p>
+                <pre class="bg-gray-800 p-4 rounded-lg text-sm overflow-x-auto text-gray-300">
+                    [
+  { "name": "Pro A", "ratings": ["Bronze", "Silver"] },
+  { "name": "Pro B", "ratings": ["Bronze", "Gold"] }
+]
+                </pre>
+                <textarea id="pro-ratings-input" class="w-full h-40 bg-gray-800 text-gray-200 border border-gray-700 rounded-lg p-4 mt-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" placeholder="Paste JSON for pro ratings here..."></textarea>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold mb-4 text-blue-400">Pro Availability</h2>
+                <p class="text-gray-400 mb-2">
+                    Paste the content from your pro availability sheet here as a JSON array.
+                </p>
+                <pre class="bg-gray-800 p-4 rounded-lg text-sm overflow-x-auto text-gray-300">
+                    [
+  { "name": "Pro A", "availability": [ { "time": "10:00A-1:00P" }, { "time": "4:00P-6:00P" } ] },
+  { "name": "Pro B", "availability": [ { "time": "10:00A-1:00P" }, { "time": "6:00P-8:00P" } ] }
+]
+                </pre>
+                <textarea id="pro-availability-input" class="w-full h-40 bg-gray-800 text-gray-200 border border-gray-700 rounded-lg p-4 mt-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" placeholder="Paste JSON for pro availability here..."></textarea>
+            </div>
+        </div>
+
+        <div class="flex justify-center mb-12">
+            <button id="process-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105">
+                Process and Match Pros
+            </button>
+        </div>
+
+        <section>
+            <h2 class="text-2xl font-bold mb-6 text-blue-400 text-center">Monday's Class Schedule</h2>
+            <div class="bg-gray-800 rounded-xl shadow-lg p-6 overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead>
+                        <tr class="text-gray-400 text-left text-sm uppercase tracking-wider">
+                            <th class="py-3 px-4">Court</th>
+                            <th class="py-3 px-4">Class Name</th>
+                            <th class="py-3 px-4">Time</th>
+                            <th class="py-3 px-4">Rating</th>
+                            <th class="py-3 px-4">Assigned Pro</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-body" class="bg-gray-800 divide-y divide-gray-700">
+                        <!-- Table rows will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

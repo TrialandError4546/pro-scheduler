@@ -316,48 +316,6 @@
 
         // Load data from Firestore on app load
         window.onload = function() {
-            // Hardcoded default pro ratings
-            const proRatingsDefault = JSON.stringify([
-                { "name": "Nouri", "ratings": ["RED", "ORANGE", "GREEN", "Intro/Novice"] },
-                { "name": "John", "ratings": ["Junior Development", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "Wheelchair"] },
-                { "name": "Justyna", "ratings": ["RED", "ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Wheelchair"] },
-                { "name": "Osas", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
-                { "name": "David", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
-                { "name": "Karla", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-                { "name": "Danny", "ratings": ["ORANGE", "Junior Development", "High Performance", "All FT", "PACES**"] },
-                { "name": "Zack", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-                { "name": "Steven", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-                { "name": "Gus", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "PACES**"] },
-                { "name": "Alex H. (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Omer", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Anders", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Wheelchair", "Seniors"] },
-                { "name": "Peter", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "PACES**", "Wheelchair", "Seniors"] },
-                { "name": "Farhad", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Jinny", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-                { "name": "Viola (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze"] },
-                { "name": "Daniel C.", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Shaquille", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Will (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Robert", "ratings": ["Junior Development", "High Performance", "Silver/Gold"] },
-                { "name": "Felix", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold", "All FT"] },
-                { "name": "Petra (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance"] },
-                { "name": "Rohan", "ratings": ["Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Orlando", "ratings": ["Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold", "All FT"] }
-            ], null, 2);
-
-            // Hardcoded default pro availability from the CSV
-            const proAvailabilityDefault = JSON.stringify([
-                { "name": "David Parra-Newton", "availability": [{ "time": "4:00P-9:30P" }] },
-                { "name": "Leo Correa", "availability": [{ "time": "11:30A-3:30P" }] },
-                { "name": "Shaquille Hamilton", "availability": [{ "time": "8:30A-3:00P" }] },
-                { "name": "Valery Cardona", "availability": [{ "time": "9:00A-4:00P" }] },
-                { "name": "Mellanie Benitez", "availability": [{ "time": "9:00A-4:00P" }] },
-                { "name": "John Warren", "availability": [{ "time": "OFF NEW" }] },
-                { "name": "Rod Bailey", "availability": [{ "time": "Available" }] },
-                { "name": "Lindsay Baum", "availability": [{ "time": "Not Available" }] },
-                { "name": "Justyna Wereszka", "availability": [{ "time": "Available" }] }
-            ], null, 2);
-
             // Set up Firebase auth and Firestore listener
             onAuthStateChanged(auth, async (user) => {
                 const loadingMessage = document.getElementById('loading-message');
@@ -382,11 +340,6 @@
                         console.error("Error fetching documents:", error);
                         setMessage('Failed to load public data. Check console.', true);
                     });
-
-                    // Initial load of pro data
-                    proRatings = JSON.parse(proRatingsDefault);
-                    proAvailability = JSON.parse(proAvailabilityDefault);
-                    
                 } else {
                     await signInAnonymously(auth);
                 }

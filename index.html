@@ -205,10 +205,17 @@
             });
         }
         
+        // Helper function for user feedback
+        function setMessage(text, isError = false) {
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = text;
+            messageElement.className = `mt-2 p-2 rounded-md ${isError ? 'bg-red-600' : 'bg-green-600'} text-white`;
+        }
+        
         // Save data to Firestore (to a public collection)
         async function saveAssignment(assignment) {
             if (!db || !userId) {
-                setMessage("Please wait for the database to be ready.");
+                setMessage("Please wait for the database to be ready.", true);
                 return;
             }
             const docRef = doc(db, `artifacts/${appId}/public/data/classAssignments`, `${assignment.court}-${assignment.name}-${assignment.time}`);
@@ -217,7 +224,7 @@
                 setMessage("Assignment saved successfully!");
             } catch (error) {
                 console.error("Error saving assignment:", error);
-                setMessage("Failed to save assignment. Check the console.");
+                setMessage("Failed to save assignment. Check the console.", true);
             }
         }
 
@@ -225,8 +232,7 @@
         async function handleProcessData() {
             const proRatingsInput = document.getElementById('pro-ratings-input').value;
             const proAvailabilityInput = document.getElementById('pro-availability-input').value;
-            let messageElement = document.getElementById('message');
-            messageElement.textContent = '';
+            setMessage('');
 
             try {
                 // Parse pro ratings and availability from user input
@@ -286,8 +292,7 @@
                 renderSchedule();
             } catch (error) {
                 console.error('Error processing data:', error);
-                messageElement.textContent = 'Failed to process data. Please ensure your JSON inputs are correctly formatted.';
-                messageElement.className = 'mt-2 p-2 rounded-md bg-red-600 text-white';
+                setMessage('Failed to process data. Please ensure your JSON inputs are correctly formatted.', true);
             }
         }
 
@@ -310,9 +315,14 @@
             // Set up Firebase auth and Firestore listener
             onAuthStateChanged(auth, async (user) => {
                 const loadingMessage = document.getElementById('loading-message');
+                const userIdContainer = document.getElementById('user-id-container');
+                
                 if (user) {
                     userId = user.uid;
                     document.getElementById('user-id').textContent = userId;
+                    loadingMessage.style.display = 'none';
+                    userIdContainer.classList.remove('hidden');
+
                     const publicCollectionPath = `artifacts/${appId}/public/data/classAssignments`;
                     const q = collection(db, publicCollectionPath);
                     onSnapshot(q, (querySnapshot) => {
@@ -322,14 +332,12 @@
                         });
                         processedScheduleData = assignedClasses;
                         renderSchedule();
-                        loadingMessage.style.display = 'none';
                     }, (error) => {
                         console.error("Error fetching documents:", error);
-                        loadingMessage.textContent = 'Failed to load public data. Check console.';
+                        setMessage('Failed to load public data. Check console.', true);
                     });
                 } else {
                     await signInAnonymously(auth);
-                    loadingMessage.style.display = 'none';
                 }
             });
 

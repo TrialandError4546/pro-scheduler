@@ -98,12 +98,13 @@
         // Helper function to find class rating from class name
         function findRatingByClass(className) {
             className = className.toLowerCase();
-            if (className.includes('red aces') || className.includes('red champs') || className.includes('mam')) return 'RED';
-            if (className.includes('orange aces') || className.includes('orange champs') || className.includes('red stars')) return 'ORANGE';
-            if (className.includes('green aces') || className.includes('green champs') || className.includes('orange stars') || className.includes('green stars')) return 'GREEN';
+            if (className.includes('red aces') || className.includes('red champs') || className.includes('mam') || className.includes('red')) return 'RED';
+            if (className.includes('orange aces') || className.includes('orange champs') || className.includes('red stars') || className.includes('orange')) return 'ORANGE';
+            if (className.includes('green aces') || className.includes('green champs') || className.includes('orange stars') || className.includes('green stars') || className.includes('green')) return 'GREEN';
             if (className.includes('jd aces plus') || className.includes('jd champs') || className.includes('jd aces') || className.includes('jd stars')) return 'Junior Development';
             if (className.includes('elite') || className.includes('ftf')) return 'High Performance';
             if (className.includes('rally')) return 'Rally/Bronze';
+            if (className.includes('bronze')) return 'Rally/Bronze';
             if (className.includes('silver')) return 'Silver/Gold';
             if (className.includes('gold')) return 'Silver/Gold';
             if (className.includes('novice') || className.includes('intro to tennis')) return 'Intro/Novice';
@@ -115,58 +116,58 @@
         const schedule = [
             { court: 1, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 1, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
-            { court: 1, name: 'FTF', time: '4:00P-6:00P', rating: 'None', pro: null },
+            { court: 1, name: 'FTF', time: '4:00P-6:00P', rating: findRatingByClass('FTF'), pro: null },
             { court: 1, name: 'Intro To Tennis', time: '6:00P-7:30P', rating: findRatingByClass('Intro To Tennis'), pro: null },
-            { court: 1, name: 'Night Lights', time: '7:30P-9:00P', rating: 'Gold', pro: null },
+            { court: 1, name: 'Night Lights', time: '7:30P-9:00P', rating: findRatingByClass('Night Lights Gold'), pro: null },
             { court: 2, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 2, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
-            { court: 2, name: 'FTF', time: '4:00P-6:00P', rating: 'None', pro: null },
-            { court: 2, name: 'Drill & Play', time: '6:00P-8:00P', rating: 'Bronze', pro: null },
+            { court: 2, name: 'FTF', time: '4:00P-6:00P', rating: findRatingByClass('FTF'), pro: null },
+            { court: 2, name: 'Drill & Play', time: '6:00P-8:00P', rating: findRatingByClass('Drill & Play Bronze'), pro: null },
             { court: 2, name: 'Zone', time: '8:00P-9:30P', rating: 'None', pro: null },
             { court: 3, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 3, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
-            { court: 3, name: 'Elite', time: '4:00P-6:00P', rating: 'High Performance', pro: null },
-            { court: 3, name: 'Drill & Play', time: '6:00P-8:00P', rating: 'Bronze', pro: null },
+            { court: 3, name: 'Elite', time: '4:00P-6:00P', rating: findRatingByClass('Elite'), pro: null },
+            { court: 3, name: 'Drill & Play', time: '6:00P-8:00P', rating: findRatingByClass('Drill & Play Bronze'), pro: null },
             { court: 3, name: 'Zone', time: '8:00P-9:30P', rating: 'None', pro: null },
             { court: 4, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 4, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
-            { court: 4, name: 'Elite', time: '4:00P-6:00P', rating: 'High Performance', pro: null },
+            { court: 4, name: 'Elite', time: '4:00P-6:00P', rating: findRatingByClass('Elite'), pro: null },
             { court: 4, name: 'JD Stars', time: '6:30P-8:00P', rating: findRatingByClass('JD Stars'), pro: null },
-            { court: 4, name: 'NTC Silver', time: '8:00P-9:30P', rating: 'Silver/Gold', pro: null },
+            { court: 4, name: 'NTC Silver', time: '8:00P-9:30P', rating: findRatingByClass('NTC Silver'), pro: null },
             { court: 5, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 5, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
             { court: 5, name: 'JR Stroke Series', time: '5:00P-6:00P', rating: 'None', pro: null },
             { court: 5, name: 'Green Champs', time: '6:00P-8:00P', rating: findRatingByClass('Green Champs'), pro: null },
-            { court: 5, name: 'NTC Bronze', time: '8:00P-9:30P', rating: 'Rally/Bronze', pro: null },
+            { court: 5, name: 'NTC Bronze', time: '8:00P-9:30P', rating: findRatingByClass('NTC Bronze'), pro: null },
             { court: 6, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 6, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
             { court: 6, name: 'JR Stroke Series', time: '5:00P-6:00P', rating: 'None', pro: null },
             { court: 6, name: 'Green Champs', time: '6:00P-8:00P', rating: findRatingByClass('Green Champs'), pro: null },
-            { court: 6, name: 'NTC Bronze', time: '8:00P-9:30P', rating: 'Rally/Bronze', pro: null },
+            { court: 6, name: 'NTC Bronze', time: '8:00P-9:30P', rating: findRatingByClass('NTC Bronze'), pro: null },
             { court: 7, name: 'Novice 102', time: '9:00A-10:30A', rating: findRatingByClass('Novice 102'), pro: null },
-            { court: 7, name: 'Lead Pro', time: '10:30A-12:00P', rating: 'Bronze', pro: null },
+            { court: 7, name: 'Lead Pro', time: '10:30A-12:00P', rating: findRatingByClass('Lead Pro Bronze'), pro: null },
             { court: 7, name: 'Advanced Zone', time: '12:00P-1:30P', rating: 'None', pro: null },
             { court: 7, name: 'Red Aces', time: '4:00P-5:30P', rating: findRatingByClass('Red Aces'), pro: null },
             { court: 7, name: 'Orange Champs', time: '5:30P-7:00P', rating: findRatingByClass('Orange Champs'), pro: null },
-            { court: 7, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'Rally/Bronze', pro: null },
+            { court: 7, name: 'NTC Rally', time: '7:00P-8:30P', rating: findRatingByClass('NTC Rally'), pro: null },
             { court: 7, name: 'Intro to Tennis', time: '8:30P-10:00P', rating: findRatingByClass('Intro to Tennis'), pro: null },
-            { court: 8, name: 'NTC Rally', time: '9:00A-10:30A', rating: 'Rally/Bronze', pro: null },
-            { court: 8, name: 'Lead Pro', time: '10:30A-12:00P', rating: 'Bronze', pro: null },
+            { court: 8, name: 'NTC Rally', time: '9:00A-10:30A', rating: findRatingByClass('NTC Rally'), pro: null },
+            { court: 8, name: 'Lead Pro', time: '10:30A-12:00P', rating: findRatingByClass('Lead Pro Bronze'), pro: null },
             { court: 8, name: 'Orange Aces', time: '4:00P-5:30P', rating: findRatingByClass('Orange Aces'), pro: null },
             { court: 8, name: 'Green Aces', time: '5:30P-7:00P', rating: findRatingByClass('Green Aces'), pro: null },
-            { court: 8, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'Rally/Bronze', pro: null },
+            { court: 8, name: 'NTC Rally', time: '7:00P-8:30P', rating: findRatingByClass('NTC Rally'), pro: null },
             { court: 8, name: 'Stroke Series', time: '8:30P-9:30P', rating: 'None', pro: null },
-            { court: 9, name: 'NTC Rally', time: '9:00A-10:30A', rating: 'Rally/Bronze', pro: null },
+            { court: 9, name: 'NTC Rally', time: '9:00A-10:30A', rating: findRatingByClass('NTC Rally'), pro: null },
             { court: 9, name: 'Eval', time: '5:00P-5:30P', rating: 'None', pro: null },
             { court: 9, name: 'Jr expansion', time: '5:30P-7:00P', rating: 'None', pro: null },
-            { court: 9, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'Rally/Bronze', pro: null },
+            { court: 9, name: 'NTC Rally', time: '7:00P-8:30P', rating: findRatingByClass('NTC Rally'), pro: null },
             { court: 9, name: 'Stroke Series', time: '8:30P-9:30P', rating: 'None', pro: null },
-            { court: 10, name: 'Drill & Play', time: '10:00A-11:30A', rating: 'Silver/Gold', pro: null },
+            { court: 10, name: 'Drill & Play', time: '10:00A-11:30A', rating: findRatingByClass('Drill & Play Silver'), pro: null },
             { court: 10, name: 'Green Stars', time: '5:00P-7:00P', rating: findRatingByClass('Green Stars'), pro: null },
             { court: 10, name: 'Novice 102', time: '7:00P-8:30P', rating: findRatingByClass('Novice 102'), pro: null },
-            { court: 11, name: 'Drill & Play', time: '10:00A-11:30A', rating: 'Silver/Gold', pro: null },
+            { court: 11, name: 'Drill & Play', time: '10:00A-11:30A', rating: findRatingByClass('Drill & Play Silver'), pro: null },
             { court: 11, name: 'Novice 102', time: '7:00P-8:30P', rating: findRatingByClass('Novice 102'), pro: null },
-            { court: 12, name: 'NTC Gold', time: '7:00P-8:30P', rating: 'Silver/Gold', pro: null },
+            { court: 12, name: 'NTC Gold', time: '7:00P-8:30P', rating: findRatingByClass('NTC Gold'), pro: null },
         ];
 
         // Helper to parse time strings

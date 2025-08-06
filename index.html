@@ -312,14 +312,15 @@
             }
         };
 
-        // Your Firebase Configuration
+        // Your Firebase Configuration (UPDATED)
         const firebaseConfig = {
-            apiKey: "AIzaSyBfSktPAi7fZu9TFISDn-WoQEYWcbocZCg",
-            authDomain: "sample-firebase-ai-app-2418a.firebaseapp.com",
-            projectId: "sample-firebase-ai-app-2418a",
-            storageBucket: "sample-firebase-ai-app-2418a.firebasestorage.app",
-            messagingSenderId: "614076690358",
-            appId: "1:614076690358:web:413c5332b56781e8639b17"
+            apiKey: "AIzaSyAuIqhrh4KbvRyB07UB-NvDz5dK-XRFAW0",
+            authDomain: "ntc-pro-scheduler.firebaseapp.com",
+            projectId: "ntc-pro-scheduler",
+            storageBucket: "ntc-pro-scheduler.firebasestorage.app",
+            messagingSenderId: "405568766027",
+            appId: "1:405568766027:web:b4f61ffb74458a61270dce",
+            measurementId: "G-1HQ35F9F6N"
         };
 
         let db;
@@ -406,18 +407,21 @@
         // This function now *creates and saves* individual weekly documents
         const initializeAndSaveAllWeeklySchedules = async () => {
             const appIdForFirestore = firebaseConfig.projectId;
-            const weeksCollectionRef = collection(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/weeks`);
+            // Reference to the 'weeks' subcollection under schedules/{appId}
+            const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); 
             
             for (const category of Object.keys(SCHEDULE_CATEGORIES)) {
                 for (const day of Object.keys(SCHEDULE_CATEGORIES[category])) {
                     for (const classItem of SCHEDULE_CATEGORIES[category][day]) {
                         for (const [index, date] of ALL_DATES_BY_DAY[day].entries()) {
                             const formattedDate = date.replace(/\//g, '-'); // e.g., 9-15
-                            const docId = `${formattedDate}-${day}-${classItem.name.replace(/[^a-zA-Z0-9]/g, '')}-${classItem.time.replace(/[^a-zA-Z0-9]/g, '')}`; // Unique ID for each class instance in a week
+                            // Create a unique document ID for each class instance in a specific week
+                            const docId = `${formattedDate}-${day}-${classItem.name.replace(/[^a-zA-Z0-9]/g, '')}-${classItem.time.replace(/[^a-zA-Z0-9]/g, '')}`; 
 
-                            // Only initialize if the class is offered this week
+                            // Only initialize if the class is offered this week (court is not null)
                             if (classItem.weeklyCourts[index] !== null) {
                                 const dayAvailabilityKey = day.toLowerCase();
+                                
                                 const availablePros = PRO_AVAILABILITY_DATA
                                     .filter(pro => isProAvailableForClass(pro[dayAvailabilityKey], classItem.time))
                                     .map(pro => pro.name);
@@ -429,8 +433,8 @@
                                     time: classItem.time,
                                     date: date,
                                     court: classItem.weeklyCourts[index],
-                                    pros: [], // Initially empty
-                                    availablePros: availablePros.sort()
+                                    pros: [], // Initially empty array for assigned pros
+                                    availablePros: availablePros.sort() // Available pros for this specific class instance
                                 };
                                 try {
                                     // Set each weekly class instance as a separate document
@@ -458,17 +462,22 @@
             }
 
             const formattedWeekDate = currentWeekDate.replace(/\//g, '-'); // e.g., 9-15
-            const weekDocIdPrefix = `${formattedWeekDate}-${currentDay}`; // Prefix to query documents for the current week and day
-
-            const weeksCollectionRef = collection(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/weeks`);
-            const q = query(weeksCollectionRef); // Fetch all documents in the 'weeks' collection
+            
+            // Reference to the 'weeks' subcollection
+            const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); 
+            
+            // Query for documents that match the current week's date and day
+            // Note: Firestore queries are limited. We're fetching all and filtering in-memory for simplicity.
+            // For very large datasets, you'd add more specific queries (e.g., where('date', '==', currentWeekDate))
+            // but this would require composite indexes in Firestore.
+            const q = query(weeksCollectionRef); 
 
             try {
                 const querySnapshot = await getDocs(q);
-                let fetchedWeeklyData = {};
+                let fetchedWeeklyData = {}; // Temporary object to reconstruct the full schedule structure
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    // Reconstruct the scheduleState for the current view from individual documents
+                    // Reconstruct the scheduleState from individual documents
                     if (!fetchedWeeklyData[data.category]) fetchedWeeklyData[data.category] = {};
                     if (!fetchedWeeklyData[data.category][data.day]) fetchedWeeklyData[data.category][data.day] = {};
                     if (!fetchedWeeklyData[data.category][data.day][data.className]) {
@@ -504,6 +513,7 @@
             console.log("currentWeekIndex:", currentWeekIndex);
             console.log("currentWeekDate:", currentWeekDate);
 
+            // Check if the necessary nested data exists for the current view
             if (!scheduleState || !scheduleState[currentCategory] || !scheduleState[currentCategory][currentDay] || !currentWeekDate) {
                 console.log("Rendering 'Loading schedule...' due to incomplete state.");
                 container.innerHTML = `<p class="text-center text-gray-400">Loading schedule...</p>`;
@@ -521,7 +531,7 @@
             classesForDay.forEach(classItem => {
                 const classWeekState = scheduleForDayInCurrentCategory[classItem.name]?.weeklyAssignments[currentWeekDate];
                 
-                // If class is not offered this week, skip rendering its card
+                // If class is not offered this week (court is null), skip rendering its card
                 if (!classWeekState || classWeekState.court === null) {
                     return;
                 }
@@ -619,8 +629,12 @@
 
             const appIdForFirestore = firebaseConfig.projectId;
             const formattedWeekDate = weekDate.replace(/\//g, '-');
-            const docId = `${formattedWeekDate}-${currentDay}-${className.replace(/[^a-zA-Z0-9]/g, '')}-${SCHEDULE_CATEGORIES[currentCategory][currentDay].find(c => c.name === className).time.replace(/[^a-zA-Z0-9]/g, '')}`;
-            const weekDocRef = doc(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/weeks/${docId}`);
+            // Construct the exact document ID for the specific class instance
+            const classTimeForDocId = SCHEDULE_CATEGORIES[currentCategory][currentDay].find(c => c.name === className).time.replace(/[^a-zA-Z0-9]/g, '');
+            const docId = `${formattedWeekDate}-${currentDay}-${className.replace(/[^a-zA-Z0-9]/g, '')}-${classTimeForDocId}`;
+            
+            const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); 
+            const weekDocRef = doc(weeksCollectionRef, docId);
             
             try {
                 const docSnap = await getDoc(weekDocRef);
@@ -638,6 +652,8 @@
 
                     await setDoc(weekDocRef, { pros: updatedPros }, { merge: true });
                     console.log(`Updated ${className} on ${weekDate} with pros:`, updatedPros);
+                    // Re-fetch and render to update UI and other checkboxes
+                    await fetchAndRenderCurrentWeek(); 
                 } else {
                     console.error(`Document for ${className} on ${weekDate} not found. Cannot update.`);
                 }
@@ -665,7 +681,7 @@
             }
 
             const appIdForFirestore = firebaseConfig.projectId;
-            const weeksCollectionRef = collection(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/weeks`);
+            const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); // Updated path
 
             let promises = [];
 
@@ -675,7 +691,8 @@
 
                 if (classOffering && classOffering.weeklyCourts[weekIndex] !== null) {
                     const formattedDate = weekDate.replace(/\//g, '-');
-                    const docId = `${formattedDate}-${dayForAssignment}-${className.replace(/[^a-zA-Z0-9]/g, '')}-${classOffering.time.replace(/[^a-zA-Z0-9]/g, '')}`;
+                    const classTimeForDocId = classOffering.time.replace(/[^a-zA-Z0-9]/g, '');
+                    const docId = `${formattedDate}-${dayForAssignment}-${className.replace(/[^a-zA-Z0-9]/g, '')}-${classTimeForDocId}`;
                     const weekDocRef = doc(weeksCollectionRef, docId);
 
                     // Prepare the update for this specific weekly document
@@ -834,9 +851,8 @@
             // Fetch the specific document for today's week
             const appIdForFirestore = firebaseConfig.projectId;
             const formattedTodayWeekDate = todayWeekDate.replace(/\//g, '-');
-            const weekDocIdPrefix = `${formattedTodayWeekDate}-${today}`; // This is a partial ID, need to query by class name too
             
-            const weeksCollectionRef = collection(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/weeks`);
+            const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); // Updated path
             const q = query(weeksCollectionRef); // Fetch all documents in the 'weeks' collection
 
             try {
@@ -978,6 +994,11 @@
 
                 document.getElementById('userId').innerText = 'Authenticating...';
 
+                // We will use a direct fetch for the initial check to avoid onSnapshot's continuous triggering
+                // during the initial data population.
+                const appIdForFirestore = firebaseConfig.projectId;
+                const weeksCollectionRef = collection(db, 'schedules', appIdForFirestore, 'weeks'); 
+
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         currentUserId = user.uid;
@@ -989,9 +1010,6 @@
                     }
 
                     if (db && currentUserId) {
-                        const appIdForFirestore = firebaseConfig.projectId;
-                        const weeksCollectionRef = collection(db, `artifacts/${appIdForFirestore}/public/data/proSchedule/weeks`);
-
                         // Check if the 'weeks' collection is empty. If so, initialize all documents.
                         const weeksSnapshot = await getDocs(query(weeksCollectionRef));
                         if (weeksSnapshot.empty) {

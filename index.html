@@ -138,4 +138,294 @@
             { "name": "Valery Cardona", "availability": [{ "time": "9:00A-4:00P" }] },
             { "name": "Mellanie Benitez", "availability": [{ "time": "9:00A-4:00P" }] },
             { "name": "John Warren", "availability": [{ "time": "OFF NEW" }] },
-            { "name": "Rod Bailey", "availability": [{ "tim
+            { "name": "Rod Bailey", "availability": [{ "time": "Available" }] },
+            { "name": "Lindsay Baum", "availability": [{ "time": "Not Available" }] },
+            { "name": "Justyna Wereszka", "availability": [{ "time": "Available" }] }
+        ], null, 2);
+
+        // Helper to parse time strings
+        function parseTime(timeStr) {
+            const [start, end] = timeStr.split('-').map(s => s.trim());
+            const startMatch = start.match(/(\d+):?(\d+)?(a|p|am|pm)/i);
+            const endMatch = end.match(/(\d+):?(\d+)?(a|p|am|pm)/i);
+
+            if (!startMatch || !endMatch) {
+                console.error("Failed to parse time string:", timeStr);
+                return null;
+            }
+
+            let startHour = parseInt(startMatch[1]);
+            let startMinutes = startMatch[2] ? parseInt(startMatch[2]) : 0;
+            let startPeriod = startMatch[3] ? startMatch[3].toLowerCase() : '';
+
+            let endHour = parseInt(endMatch[1]);
+            let endMinutes = endMatch[2] ? parseInt(endMatch[2]) : 0;
+            let endPeriod = endMatch[3] ? endMatch[3].toLowerCase() : '';
+            
+            // Handle am/pm conversions
+            if (startPeriod.includes('p') && startHour < 12) startHour += 12;
+            if (startPeriod.includes('a') && startHour === 12) startHour = 0;
+            if (endPeriod.includes('p') && endHour < 12) endHour += 12;
+            if (endPeriod.includes('a') && endHour === 12) endHour = 0;
+
+            return {
+                start: startHour + startMinutes / 60,
+                end: endHour + endMinutes / 60
+            };
+        }
+
+        // Function to update the DOM with the schedule
+        function renderSchedule() {
+            const scheduleBody = document.getElementById('schedule-body');
+            scheduleBody.innerHTML = ''; // Clear existing rows
+
+            schedule.forEach((item, index) => {
+                const assigned = processedScheduleData.find(assignment => 
+                    assignment.court === item.court && assignment.name === item.name && assignment.time === item.time
+                );
+                const assignedProName = assigned ? assigned.pro : 'N/A';
+
+                let ratingColor = '';
+                if (item.rating === 'Gold') ratingColor = 'bg-yellow-500 text-gray-900';
+                else if (item.rating === 'Silver') ratingColor = 'bg-gray-400 text-gray-900';
+                else if (item.rating === 'Bronze') ratingColor = 'bg-orange-400 text-gray-900';
+                else ratingColor = 'bg-gray-500 text-gray-100';
+
+                let proColor = assignedProName === 'No Pro Available' ? 'text-red-400' : 'text-green-400';
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-700 transition-colors cursor-pointer';
+                row.innerHTML = `
+                    <td class="py-4 px-4 whitespace-nowrap text-gray-300">${item.court}</td>
+                    <td class="py-4 px-4 whitespace-nowrap text-gray-200">${item.name}</td>
+                    <td class="py-4 px-4 whitespace-nowrap text-gray-300">${item.time}</td>
+                    <td class="py-4 px-4 whitespace-nowrap">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${ratingColor}">
+                            ${item.rating || 'N/A'}
+                        </span>
+                    </td>
+                    <td class="py-4 px-4 whitespace-nowrap text-blue-300">
+                        <span class="${proColor}">
+                            ${assignedProName}
+                        </span>
+                    </td>
+                `;
+                row.addEventListener('click', () => openProAssignmentModal(item, assignedProName));
+                scheduleBody.appendChild(row);
+            });
+        }
+        
+        // Helper function for user feedback
+        function setMessage(text, isError = false) {
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = text;
+            messageElement.className = `mt-2 p-2 rounded-md ${isError ? 'bg-red-600' : 'bg-green-600'} text-white`;
+        }
+
+        // Open modal to assign a pro
+        function openProAssignmentModal(classInfo, currentPro) {
+            const modal = document.getElementById('pro-assignment-modal');
+            const proList = document.getElementById('eligible-pro-list');
+            proList.innerHTML = ''; // Clear previous list
+            
+            const eligiblePros = findEligiblePros(classInfo);
+
+            if (eligiblePros.length === 0) {
+                proList.innerHTML = '<p class="text-gray-400">No eligible pros found for this class.</p>';
+            } else {
+                eligiblePros.forEach(proName => {
+                    const button = document.createElement('button');
+                    button.textContent = proName;
+                    button.className = `w-full text-left p-3 rounded-lg border border-gray-700 mb-2 transition-colors duration-200 ${
+                        proName === currentPro ? 'bg-green-600 text-white' : 'bg-gray-800 hover:bg-blue-600'
+                    }`;
+                    button.addEventListener('click', () => assignPro(classInfo, proName));
+                    proList.appendChild(button);
+                });
+            }
+
+            modal.classList.add('open');
+        }
+
+        // Close modal
+        function closeProAssignmentModal() {
+            document.getElementById('pro-assignment-modal').classList.remove('open');
+        }
+
+        // Assign a pro and save to database
+        async function assignPro(classInfo, proName) {
+            const updatedClass = { ...classInfo, pro: proName };
+            const docRef = doc(db, `artifacts/${appId}/public/data/classAssignments`, `${classInfo.court}-${classInfo.name}-${classInfo.time}`);
+            try {
+                await setDoc(docRef, updatedClass, { merge: true });
+                setMessage(`Successfully assigned ${proName} to class on court ${classInfo.court}.`, false);
+                closeProAssignmentModal();
+            } catch (error) {
+                console.error("Error saving assignment:", error);
+                setMessage("Failed to save assignment. Check the console.", true);
+            }
+        }
+        
+        // Find eligible pros for a given class
+        function findEligiblePros(classInfo) {
+            const classTime = parseTime(classInfo.time);
+            if (!classTime) return [];
+
+            const assignedProNames = new Set(processedScheduleData.map(c => c.pro).filter(Boolean));
+            const availablePros = proAvailability.filter(pro => {
+                if (assignedProNames.has(pro.name)) {
+                    return false;
+                }
+                const availableSlot = pro.availability.find(slot => {
+                    if (slot.time.toLowerCase().includes('available')) return true;
+                    if (slot.time.toLowerCase().includes('off') || slot.time.toLowerCase().includes('not available')) return false;
+                    const slotTime = parseTime(slot.time);
+                    return (classTime.start >= slotTime.start && classTime.end <= slotTime.end);
+                });
+                return availableSlot;
+            });
+            
+            const eligiblePros = availablePros.filter(pro => {
+                const hasRequiredRating = proRatings.find(proRating =>
+                    proRating.name === pro.name && proRating.ratings.includes(classInfo.rating)
+                );
+                return hasRequiredRating;
+            });
+
+            return eligiblePros.map(pro => pro.name);
+        }
+
+        
+        // Load data from Firestore on app load
+        window.onload = function() {
+            // Hardcoded default pro ratings
+            const proRatingsDefault = JSON.stringify([
+                { "name": "Nouri", "ratings": ["Red", "Orange", "Green", "Intro/Novice"] },
+                { "name": "John", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "JD Aces (10-14)", "JD Stars", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "Wheelchair"] },
+                { "name": "Justyna", "ratings": ["Red", "Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Wheelchair"] },
+                { "name": "Osas", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
+                { "name": "David", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
+                { "name": "Karla", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+                { "name": "Danny", "ratings": ["Orange", "JD Aces Plus (14-18)", "JD Champs", "JD Aces (10-14)", "FTF", "High Performance (FTF +, Elite)", "All FT", "PACES**"] },
+                { "name": "Zack", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+                { "name": "Steven", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+                { "name": "Gus", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "PACES**"] },
+                { "name": "Alex H. (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "High Performance (FTF +, Elite)", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Omer", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Anders", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Wheelchair", "Seniors"] },
+                { "name": "Peter", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "PACES**", "Wheelchair", "Seniors"] },
+                { "name": "Farhad", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Jinny", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+                { "name": "Viola (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze"] },
+                { "name": "Daniel C.", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Shaquille", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Will (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Robert", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Silver/Gold"] },
+                { "name": "Felix", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold", "All FT"] },
+                { "name": "Petra (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF"] },
+                { "name": "Rohan", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Orlando", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold", "All FT"] }
+            ], null, 2);
+
+            // Hardcoded default pro availability from the CSV
+            const proAvailabilityDefault = JSON.stringify([
+                { "name": "David Parra-Newton", "availability": [{ "time": "4:00P-9:30P" }] },
+                { "name": "Leo Correa", "availability": [{ "time": "11:30A-3:30P" }] },
+                { "name": "Shaquille Hamilton", "availability": [{ "time": "8:30A-3:00P" }] },
+                { "name": "Valery Cardona", "availability": [{ "time": "9:00A-4:00P" }] },
+                { "name": "Mellanie Benitez", "availability": [{ "time": "9:00A-4:00P" }] },
+                { "name": "John Warren", "availability": [{ "time": "OFF NEW" }] },
+                { "name": "Rod Bailey", "availability": [{ "time": "Available" }] },
+                { "name": "Lindsay Baum", "availability": [{ "time": "Not Available" }] },
+                { "name": "Justyna Wereszka", "availability": [{ "time": "Available" }] }
+            ], null, 2);
+
+            // Set up Firebase auth and Firestore listener
+            onAuthStateChanged(auth, async (user) => {
+                const loadingMessage = document.getElementById('loading-message');
+                const userIdContainer = document.getElementById('user-id-container');
+                
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('user-id').textContent = userId;
+                    loadingMessage.style.display = 'none';
+                    userIdContainer.classList.remove('hidden');
+
+                    const publicCollectionPath = `artifacts/${appId}/public/data/classAssignments`;
+                    const q = collection(db, publicCollectionPath);
+                    onSnapshot(q, (querySnapshot) => {
+                        const assignedClasses = [];
+                        querySnapshot.forEach((doc) => {
+                            assignedClasses.push(doc.data());
+                        });
+                        processedScheduleData = assignedClasses;
+                        renderSchedule();
+                    }, (error) => {
+                        console.error("Error fetching documents:", error);
+                        setMessage('Failed to load public data. Check console.', true);
+                    });
+
+                    // Initial load of pro data
+                    proRatings = JSON.parse(proRatingsDefault);
+                    proAvailability = JSON.parse(proAvailabilityDefault);
+                    
+                } else {
+                    await signInAnonymously(auth);
+                }
+            });
+            
+            // Set up modal close button
+            document.getElementById('close-modal-btn').addEventListener('click', closeProAssignmentModal);
+        };
+    </script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans p-6 md:p-12">
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 md:mb-12 text-center">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-blue-400 mb-2">Tennis Pro Scheduler</h1>
+            <p class="text-gray-400">Manage your class schedule and assign pros based on availability and skill.</p>
+        </header>
+
+        <div class="mb-8 text-center text-sm md:text-base">
+            <p id="loading-message" class="text-blue-300">Loading...</p>
+            <p class="text-gray-400 hidden" id="user-id-container">
+                <span class="font-semibold text-blue-300">Your User ID:</span> <span id="user-id"></span>
+            </p>
+            <p id="message" class="mt-2"></p>
+        </div>
+
+        <section>
+            <h2 class="text-2xl font-bold mb-6 text-blue-400 text-center">Monday's Class Schedule</h2>
+            <div class="bg-gray-800 rounded-xl shadow-lg p-6 overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead>
+                        <tr class="text-gray-400 text-left text-sm uppercase tracking-wider">
+                            <th class="py-3 px-4">Court</th>
+                            <th class="py-3 px-4">Class Name</th>
+                            <th class="py-3 px-4">Time</th>
+                            <th class="py-3 px-4">Rating</th>
+                            <th class="py-3 px-4">Assigned Pro</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-body" class="bg-gray-800 divide-y divide-gray-700">
+                        <!-- Table rows will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal for Pro Assignment -->
+    <div id="pro-assignment-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
+        <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full shadow-lg border border-blue-400">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-bold text-blue-400">Assign a Pro</h3>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div id="eligible-pro-list">
+                <!-- Pro buttons will be populated here -->
+            </div>
+        </div>
+    </div>
+</body>
+</html>

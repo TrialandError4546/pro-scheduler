@@ -43,12 +43,28 @@
         let proAvailability = [];
         let processedScheduleData = [];
 
+        // Helper function to find class rating from class name
+        function findRatingByClass(className) {
+            className = className.toLowerCase();
+            if (className.includes('red aces') || className.includes('red champs') || className.includes('mam')) return 'RED';
+            if (className.includes('orange aces') || className.includes('orange champs') || className.includes('red stars')) return 'ORANGE';
+            if (className.includes('green aces') || className.includes('green champs') || className.includes('orange stars') || className.includes('green stars')) return 'GREEN';
+            if (className.includes('jd aces plus') || className.includes('jd champs') || className.includes('jd aces') || className.includes('jd stars')) return 'Junior Development';
+            if (className.includes('elite') || className.includes('ftf')) return 'High Performance';
+            if (className.includes('rally')) return 'Rally/Bronze';
+            if (className.includes('silver')) return 'Silver/Gold';
+            if (className.includes('gold')) return 'Silver/Gold';
+            if (className.includes('novice') || className.includes('intro to tennis')) return 'Intro/Novice';
+            
+            return 'None';
+        }
+
         // Hardcoded schedule data from the PDF for Monday
         const schedule = [
             { court: 1, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 1, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
             { court: 1, name: 'FTF', time: '4:00P-6:00P', rating: 'None', pro: null },
-            { court: 1, name: 'Intro To Tennis', time: '6:00P-7:30P', rating: 'None', pro: null },
+            { court: 1, name: 'Intro To Tennis', time: '6:00P-7:30P', rating: findRatingByClass('Intro To Tennis'), pro: null },
             { court: 1, name: 'Night Lights', time: '7:30P-9:00P', rating: 'Gold', pro: null },
             { court: 2, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 2, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
@@ -57,77 +73,77 @@
             { court: 2, name: 'Zone', time: '8:00P-9:30P', rating: 'None', pro: null },
             { court: 3, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 3, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
-            { court: 3, name: 'Elite', time: '4:00P-6:00P', rating: 'None', pro: null },
+            { court: 3, name: 'Elite', time: '4:00P-6:00P', rating: 'High Performance', pro: null },
             { court: 3, name: 'Drill & Play', time: '6:00P-8:00P', rating: 'Bronze', pro: null },
             { court: 3, name: 'Zone', time: '8:00P-9:30P', rating: 'None', pro: null },
             { court: 4, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 4, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
-            { court: 4, name: 'Elite', time: '4:00P-6:00P', rating: 'None', pro: null },
-            { court: 4, name: 'JD Stars', time: '6:30P-8:00P', rating: 'None', pro: null },
-            { court: 4, name: 'NTC Silver', time: '8:00P-9:30P', rating: 'Silver', pro: null },
+            { court: 4, name: 'Elite', time: '4:00P-6:00P', rating: 'High Performance', pro: null },
+            { court: 4, name: 'JD Stars', time: '6:30P-8:00P', rating: findRatingByClass('JD Stars'), pro: null },
+            { court: 4, name: 'NTC Silver', time: '8:00P-9:30P', rating: 'Silver/Gold', pro: null },
             { court: 5, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 5, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
             { court: 5, name: 'JR Stroke Series', time: '5:00P-6:00P', rating: 'None', pro: null },
-            { court: 5, name: 'Green Champs', time: '6:00P-8:00P', rating: 'None', pro: null },
-            { court: 5, name: 'NTC Bronze', time: '8:00P-9:30P', rating: 'Bronze', pro: null },
+            { court: 5, name: 'Green Champs', time: '6:00P-8:00P', rating: findRatingByClass('Green Champs'), pro: null },
+            { court: 5, name: 'NTC Bronze', time: '8:00P-9:30P', rating: 'Rally/Bronze', pro: null },
             { court: 6, name: 'Round Robin', time: '10:00A-11:30A', rating: 'None', pro: null },
             { court: 6, name: 'Round Robin', time: '11:30A-1:00P', rating: 'None', pro: null },
             { court: 6, name: 'JR Stroke Series', time: '5:00P-6:00P', rating: 'None', pro: null },
-            { court: 6, name: 'Green Champs', time: '6:00P-8:00P', rating: 'None', pro: null },
-            { court: 6, name: 'NTC Bronze', time: '8:00P-9:30P', rating: 'Bronze', pro: null },
-            { court: 7, name: 'Novice 102', time: '9:00A-10:30A', rating: 'None', pro: null },
+            { court: 6, name: 'Green Champs', time: '6:00P-8:00P', rating: findRatingByClass('Green Champs'), pro: null },
+            { court: 6, name: 'NTC Bronze', time: '8:00P-9:30P', rating: 'Rally/Bronze', pro: null },
+            { court: 7, name: 'Novice 102', time: '9:00A-10:30A', rating: findRatingByClass('Novice 102'), pro: null },
             { court: 7, name: 'Lead Pro', time: '10:30A-12:00P', rating: 'Bronze', pro: null },
             { court: 7, name: 'Advanced Zone', time: '12:00P-1:30P', rating: 'None', pro: null },
-            { court: 7, name: 'Red Aces', time: '4:00P-5:30P', rating: 'None', pro: null },
-            { court: 7, name: 'Orange Champs', time: '5:30P-7:00P', rating: 'None', pro: null },
-            { court: 7, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'None', pro: null },
-            { court: 7, name: 'Intro to Tennis', time: '8:30P-10:00P', rating: 'None', pro: null },
-            { court: 8, name: 'NTC Rally', time: '9:00A-10:30A', rating: 'None', pro: null },
+            { court: 7, name: 'Red Aces', time: '4:00P-5:30P', rating: findRatingByClass('Red Aces'), pro: null },
+            { court: 7, name: 'Orange Champs', time: '5:30P-7:00P', rating: findRatingByClass('Orange Champs'), pro: null },
+            { court: 7, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'Rally/Bronze', pro: null },
+            { court: 7, name: 'Intro to Tennis', time: '8:30P-10:00P', rating: findRatingByClass('Intro to Tennis'), pro: null },
+            { court: 8, name: 'NTC Rally', time: '9:00A-10:30A', rating: 'Rally/Bronze', pro: null },
             { court: 8, name: 'Lead Pro', time: '10:30A-12:00P', rating: 'Bronze', pro: null },
-            { court: 8, name: 'Orange Aces', time: '4:00P-5:30P', rating: 'None', pro: null },
-            { court: 8, name: 'Green Aces', time: '5:30P-7:00P', rating: 'None', pro: null },
-            { court: 8, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'None', pro: null },
+            { court: 8, name: 'Orange Aces', time: '4:00P-5:30P', rating: findRatingByClass('Orange Aces'), pro: null },
+            { court: 8, name: 'Green Aces', time: '5:30P-7:00P', rating: findRatingByClass('Green Aces'), pro: null },
+            { court: 8, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'Rally/Bronze', pro: null },
             { court: 8, name: 'Stroke Series', time: '8:30P-9:30P', rating: 'None', pro: null },
-            { court: 9, name: 'NTC Rally', time: '9:00A-10:30A', rating: 'None', pro: null },
+            { court: 9, name: 'NTC Rally', time: '9:00A-10:30A', rating: 'Rally/Bronze', pro: null },
             { court: 9, name: 'Eval', time: '5:00P-5:30P', rating: 'None', pro: null },
             { court: 9, name: 'Jr expansion', time: '5:30P-7:00P', rating: 'None', pro: null },
-            { court: 9, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'None', pro: null },
+            { court: 9, name: 'NTC Rally', time: '7:00P-8:30P', rating: 'Rally/Bronze', pro: null },
             { court: 9, name: 'Stroke Series', time: '8:30P-9:30P', rating: 'None', pro: null },
-            { court: 10, name: 'Drill & Play', time: '10:00A-11:30A', rating: 'Silver', pro: null },
-            { court: 10, name: 'Green Stars', time: '5:00P-7:00P', rating: 'None', pro: null },
-            { court: 10, name: 'Novice 102', time: '7:00P-8:30P', rating: 'None', pro: null },
-            { court: 11, name: 'Drill & Play', time: '10:00A-11:30A', rating: 'Silver', pro: null },
-            { court: 11, name: 'Novice 102', time: '7:00P-8:30P', rating: 'None', pro: null },
-            { court: 12, name: 'NTC Gold', time: '7:00P-8:30P', rating: 'Gold', pro: null },
+            { court: 10, name: 'Drill & Play', time: '10:00A-11:30A', rating: 'Silver/Gold', pro: null },
+            { court: 10, name: 'Green Stars', time: '5:00P-7:00P', rating: findRatingByClass('Green Stars'), pro: null },
+            { court: 10, name: 'Novice 102', time: '7:00P-8:30P', rating: findRatingByClass('Novice 102'), pro: null },
+            { court: 11, name: 'Drill & Play', time: '10:00A-11:30A', rating: 'Silver/Gold', pro: null },
+            { court: 11, name: 'Novice 102', time: '7:00P-8:30P', rating: findRatingByClass('Novice 102'), pro: null },
+            { court: 12, name: 'NTC Gold', time: '7:00P-8:30P', rating: 'Silver/Gold', pro: null },
         ];
 
         // Hardcoded default pro ratings
         const proRatingsDefault = JSON.stringify([
-            { "name": "Nouri", "ratings": ["Red", "Orange", "Green", "Intro/Novice"] },
-            { "name": "John", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "JD Aces (10-14)", "JD Stars", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "Wheelchair"] },
-            { "name": "Justyna", "ratings": ["Red", "Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Wheelchair"] },
-            { "name": "Osas", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
-            { "name": "David", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
-            { "name": "Karla", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-            { "name": "Danny", "ratings": ["Orange", "JD Aces Plus (14-18)", "JD Champs", "JD Aces (10-14)", "FTF", "High Performance (FTF +, Elite)", "All FT", "PACES**"] },
-            { "name": "Zack", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-            { "name": "Steven", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-            { "name": "Gus", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "PACES**"] },
-            { "name": "Alex H. (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "High Performance (FTF +, Elite)", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
-            { "name": "Omer", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
-            { "name": "Anders", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Wheelchair", "Seniors"] },
-            { "name": "Peter", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "PACES**", "Wheelchair", "Seniors"] },
-            { "name": "Farhad", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
-            { "name": "Jinny", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-            { "name": "Viola (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze"] },
-            { "name": "Daniel C.", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
-            { "name": "Shaquille", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
-            { "name": "Will (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
-            { "name": "Robert", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Silver/Gold"] },
-            { "name": "Felix", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold", "All FT"] },
-            { "name": "Petra (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF"] },
-            { "name": "Rohan", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
-            { "name": "Orlando", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold", "All FT"] }
+            { "name": "Nouri", "ratings": ["RED", "ORANGE", "GREEN", "Intro/Novice"] },
+            { "name": "John", "ratings": ["Junior Development", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "Wheelchair"] },
+            { "name": "Justyna", "ratings": ["RED", "ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Wheelchair"] },
+            { "name": "Osas", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
+            { "name": "David", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
+            { "name": "Karla", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+            { "name": "Danny", "ratings": ["ORANGE", "Junior Development", "High Performance", "All FT", "PACES**"] },
+            { "name": "Zack", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+            { "name": "Steven", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+            { "name": "Gus", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "PACES**"] },
+            { "name": "Alex H. (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Omer", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Anders", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Wheelchair", "Seniors"] },
+            { "name": "Peter", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "PACES**", "Wheelchair", "Seniors"] },
+            { "name": "Farhad", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Jinny", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+            { "name": "Viola (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze"] },
+            { "name": "Daniel C.", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Shaquille", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Will (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Robert", "ratings": ["Junior Development", "High Performance", "Silver/Gold"] },
+            { "name": "Felix", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold", "All FT"] },
+            { "name": "Petra (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance"] },
+            { "name": "Rohan", "ratings": ["Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
+            { "name": "Orlando", "ratings": ["Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold", "All FT"] }
         ], null, 2);
 
         // Hardcoded default pro availability from the CSV
@@ -184,11 +200,16 @@
                     assignment.court === item.court && assignment.name === item.name && assignment.time === item.time
                 );
                 const assignedProName = assigned ? assigned.pro : 'N/A';
+                
+                const currentRating = findRatingByClass(item.name) || item.rating;
 
                 let ratingColor = '';
-                if (item.rating === 'Gold') ratingColor = 'bg-yellow-500 text-gray-900';
-                else if (item.rating === 'Silver') ratingColor = 'bg-gray-400 text-gray-900';
-                else if (item.rating === 'Bronze') ratingColor = 'bg-orange-400 text-gray-900';
+                if (currentRating.includes('Gold') || currentRating === 'Silver/Gold') ratingColor = 'bg-yellow-500 text-gray-900';
+                else if (currentRating.includes('Silver')) ratingColor = 'bg-gray-400 text-gray-900';
+                else if (currentRating.includes('Bronze') || currentRating === 'Rally/Bronze') ratingColor = 'bg-orange-400 text-gray-900';
+                else if (currentRating.includes('RED')) ratingColor = 'bg-red-600 text-white';
+                else if (currentRating.includes('ORANGE')) ratingColor = 'bg-orange-500 text-white';
+                else if (currentRating.includes('GREEN')) ratingColor = 'bg-green-500 text-white';
                 else ratingColor = 'bg-gray-500 text-gray-100';
 
                 let proColor = assignedProName === 'No Pro Available' ? 'text-red-400' : 'text-green-400';
@@ -201,7 +222,7 @@
                     <td class="py-4 px-4 whitespace-nowrap text-gray-300">${item.time}</td>
                     <td class="py-4 px-4 whitespace-nowrap">
                         <span class="px-2 py-1 rounded-full text-xs font-semibold ${ratingColor}">
-                            ${item.rating || 'N/A'}
+                            ${currentRating || 'N/A'}
                         </span>
                     </td>
                     <td class="py-4 px-4 whitespace-nowrap text-blue-300">
@@ -269,6 +290,8 @@
         // Find eligible pros for a given class
         function findEligiblePros(classInfo) {
             const classTime = parseTime(classInfo.time);
+            const classRating = findRatingByClass(classInfo.name) || classInfo.rating;
+
             if (!classTime) return [];
 
             const assignedProNames = new Set(processedScheduleData.map(c => c.pro).filter(Boolean));
@@ -287,7 +310,7 @@
             
             const eligiblePros = availablePros.filter(pro => {
                 const hasRequiredRating = proRatings.find(proRating =>
-                    proRating.name === pro.name && proRating.ratings.includes(classInfo.rating)
+                    proRating.name === pro.name && proRating.ratings.includes(classRating)
                 );
                 return hasRequiredRating;
             });
@@ -300,31 +323,31 @@
         window.onload = function() {
             // Hardcoded default pro ratings
             const proRatingsDefault = JSON.stringify([
-                { "name": "Nouri", "ratings": ["Red", "Orange", "Green", "Intro/Novice"] },
-                { "name": "John", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "JD Aces (10-14)", "JD Stars", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "Wheelchair"] },
-                { "name": "Justyna", "ratings": ["Red", "Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Wheelchair"] },
-                { "name": "Osas", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
-                { "name": "David", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
-                { "name": "Karla", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-                { "name": "Danny", "ratings": ["Orange", "JD Aces Plus (14-18)", "JD Champs", "JD Aces (10-14)", "FTF", "High Performance (FTF +, Elite)", "All FT", "PACES**"] },
-                { "name": "Zack", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-                { "name": "Steven", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-                { "name": "Gus", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "PACES**"] },
-                { "name": "Alex H. (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "High Performance (FTF +, Elite)", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Omer", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Anders", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Wheelchair", "Seniors"] },
-                { "name": "Peter", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "PACES**", "Wheelchair", "Seniors"] },
-                { "name": "Farhad", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Jinny", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
-                { "name": "Viola (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze"] },
-                { "name": "Daniel C.", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Shaquille", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Will (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Robert", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Silver/Gold"] },
-                { "name": "Felix", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold", "All FT"] },
-                { "name": "Petra (Assist)", "ratings": ["Orange", "Green", "JD Aces Plus (14-18)", "JD Champs", "FTF"] },
-                { "name": "Rohan", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold"] },
-                { "name": "Orlando", "ratings": ["JD Aces Plus (14-18)", "JD Champs", "FTF", "Rally/Bronze", "Silver/Gold", "All FT"] }
+                { "name": "Nouri", "ratings": ["RED", "ORANGE", "GREEN", "Intro/Novice"] },
+                { "name": "John", "ratings": ["Junior Development", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "Wheelchair"] },
+                { "name": "Justyna", "ratings": ["RED", "ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Wheelchair"] },
+                { "name": "Osas", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
+                { "name": "David", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT", "Seniors", "Fitness"] },
+                { "name": "Karla", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+                { "name": "Danny", "ratings": ["ORANGE", "Junior Development", "High Performance", "All FT", "PACES**"] },
+                { "name": "Zack", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+                { "name": "Steven", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+                { "name": "Gus", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "PACES**"] },
+                { "name": "Alex H. (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Omer", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Anders", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Wheelchair", "Seniors"] },
+                { "name": "Peter", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "PACES**", "Wheelchair", "Seniors"] },
+                { "name": "Farhad", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Jinny", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Intro/Novice", "Rally/Bronze", "Silver/Gold", "All FT"] },
+                { "name": "Viola (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze"] },
+                { "name": "Daniel C.", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Shaquille", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Will (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Robert", "ratings": ["Junior Development", "High Performance", "Silver/Gold"] },
+                { "name": "Felix", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold", "All FT"] },
+                { "name": "Petra (Assist)", "ratings": ["ORANGE", "GREEN", "Junior Development", "High Performance"] },
+                { "name": "Rohan", "ratings": ["Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold"] },
+                { "name": "Orlando", "ratings": ["Junior Development", "High Performance", "Rally/Bronze", "Silver/Gold", "All FT"] }
             ], null, 2);
 
             // Hardcoded default pro availability from the CSV
